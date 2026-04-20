@@ -1,0 +1,8 @@
+{
+  "CONCIERGE_TYPING": "concierge:typing",
+  "MESSAGE_RECEIVED": "message:received",
+  "CONCIERGE_MESSAGE": "concierge:message",
+  "TICKET_CREATED": "ticket:created",
+  "TICKET_UPDATED": "ticket:updated",
+  "BOOKING_CONFIRMED": "booking:confirmed"
+}
