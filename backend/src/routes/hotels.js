@@ -246,4 +246,384 @@ router.post("/hotels/:hotelId/rooms/availability", async (req, res, next) => {
   }
 });
 
+// Hotel chat endpoints for RAG-based chatbot
+router.get("/hotels/:hotelId/chat/topics", async (req, res, next) => {
+  try {
+    const hotel = await Hotel.findById(req.params.hotelId).lean();
+    if (!hotel) {
+      return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Hotel not found" } });
+    }
+
+    // Get hotel documents to extract topics
+    const { HotelDocument } = await import("../models/HotelDocument.js");
+    const documents = await HotelDocument.find({ hotelId: req.params.hotelId }).lean();
+    
+    console.log(`Found ${documents.length} documents for topics extraction`);
+    
+    // Extract topics from document content - look for headings and sections
+    const topics = [];
+    const topicMap = new Map();
+    
+    documents.forEach(doc => {
+      console.log(`Processing document: ${doc.title}`);
+      const content = doc.content;
+      
+      // Check if document contains PDF metadata/binary data
+      if (content.includes('%PDF') || content.includes('%%EOF') || content.includes('/Type') || content.includes('startxref')) {
+        console.log(`Document contains PDF metadata, skipping heading extraction`);
+        // Skip this document for heading extraction as it contains binary data
+        return;
+      }
+      
+      const lines = content.split('\n');
+      
+      // Look for proper headings (lines that end with colon or are in title case)
+      lines.forEach(line => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+        
+        // Filter out PDF technical content and metadata
+        if (trimmedLine.includes('/') || 
+            trimmedLine.includes('>>') || 
+            trimmedLine.includes('<<') ||
+            trimmedLine.includes('%') ||
+            trimmedLine.includes('obj') ||
+            trimmedLine.includes('endobj') ||
+            trimmedLine.includes('xref') ||
+            trimmedLine.includes('startxref') ||
+            trimmedLine.match(/^\d+\s+\d+\s+R/) ||
+            trimmedLine.length > 100) {
+          return; // Skip PDF metadata lines
+        }
+        
+        // Check if line looks like a proper heading
+        const isHeading = 
+          (trimmedLine.endsWith(':') && // Lines ending with colon (e.g., "Room Services:")
+           trimmedLine.length < 50 && // Not too long
+           trimmedLine.length > 5 && // Not too short
+           !trimmedLine.includes('•') && // Not a bullet point
+           !trimmedLine.includes('-') && // Not a dash item
+           !trimmedLine.includes('₹') && // Not a price line
+           !trimmedLine.match(/^\d/) && // Doesn't start with number
+           trimmedLine.split(' ').length <= 6 && // Not too many words
+           /^[A-Z]/.test(trimmedLine) // Starts with capital letter
+          );
+        
+        if (isHeading) {
+          const cleanHeading = trimmedLine.replace(':', '').trim();
+          const headingId = cleanHeading.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          
+          if (!topicMap.has(headingId)) {
+            console.log(`Found valid heading: "${cleanHeading}"`);
+            
+            // Generate description based on heading content
+            let description = `Information about ${cleanHeading.toLowerCase()}`;
+            
+            // Find content under this heading
+            const headingIndex = lines.indexOf(line);
+            const nextHeadingIndex = lines.slice(headingIndex + 1).findIndex(nextLine => {
+              const nextTrimmed = nextLine.trim();
+              return nextTrimmed.endsWith(':') && 
+                     nextTrimmed.length < 50 && 
+                     nextTrimmed.length > 5 &&
+                     !nextTrimmed.includes('/') &&
+                     !nextTrimmed.includes('>>');
+            });
+            
+            const endIndex = nextHeadingIndex === -1 ? Math.min(lines.length, headingIndex + 10) : headingIndex + 1 + nextHeadingIndex;
+            const sectionLines = lines.slice(headingIndex + 1, endIndex);
+            
+            // Extract clean content items for description
+            const cleanItems = sectionLines
+              .filter(sectionLine => {
+                const trimmed = sectionLine.trim();
+                return trimmed && 
+                       !trimmed.includes('/') && 
+                       !trimmed.includes('>>') && 
+                       !trimmed.includes('<<') &&
+                       !trimmed.includes('%') &&
+                       trimmed.length < 100;
+              })
+              .map(sectionLine => sectionLine.trim().replace(/^[-•]\s*/, ''))
+              .filter(item => item.length > 0)
+              .slice(0, 3);
+            
+            if (cleanItems.length > 0) {
+              description = cleanItems.join(', ');
+              if (description.length > 60) {
+                description = description.substring(0, 60) + '...';
+              }
+            }
+            
+            topicMap.set(headingId, {
+              id: headingId,
+              title: cleanHeading,
+              description: description
+            });
+          }
+        }
+      });
+    });
+    
+    // Convert map to array
+    let extractedTopics = Array.from(topicMap.values());
+    
+    console.log(`Extracted ${extractedTopics.length} clean topics:`, extractedTopics.map(t => t.title));
+    
+    // If no clean topics extracted or document has PDF data, provide default topics based on common hotel sections
+    if (extractedTopics.length === 0) {
+      console.log(`No clean headings found, providing default hotel topics`);
+      extractedTopics = [
+        {
+          id: 'room-services',
+          title: 'Room Services',
+          description: '24/7 room service, laundry, housekeeping'
+        },
+        {
+          id: 'food-menu',
+          title: 'Food Menu',
+          description: 'Breakfast, lunch, dinner options'
+        },
+        {
+          id: 'amenities',
+          title: 'Hotel Amenities',
+          description: 'Wi-Fi, parking, facilities'
+        },
+        {
+          id: 'policies',
+          title: 'Hotel Policies',
+          description: 'Check-in/out, cancellation policy'
+        }
+      ];
+    }
+    
+    return ok(res, { topics: extractedTopics });
+  } catch (err) {
+    console.error("Error extracting topics:", err);
+    return next(err);
+  }
+});
+
+router.post("/hotels/:hotelId/chat", async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || !message.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: { code: "VALIDATION_ERROR", message: "Message is required" } 
+      });
+    }
+
+    const hotel = await Hotel.findById(req.params.hotelId).lean();
+    if (!hotel) {
+      return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Hotel not found" } });
+    }
+
+    // Get hotel documents for RAG
+    const { HotelDocument } = await import("../models/HotelDocument.js");
+    const documents = await HotelDocument.find({ hotelId: req.params.hotelId }).lean();
+    
+    console.log(`Found ${documents.length} documents for hotel ${hotel.name}`);
+    
+    // Enhanced RAG implementation with section-specific extraction
+    const messageLower = message.toLowerCase();
+    const relevantContent = [];
+    const sources = [];
+    
+    // Define search keywords for different categories
+    const searchCategories = {
+      booking: ['booking', 'reservation', 'book', 'reserve', 'availability', 'rates', 'price', 'cost'],
+      services: ['service', 'room service', 'laundry', 'housekeeping', 'concierge', 'pickup', 'transport'],
+      menu: ['menu', 'food', 'dining', 'restaurant', 'breakfast', 'lunch', 'dinner', 'snacks', 'meal'],
+      amenities: ['amenities', 'facilities', 'wifi', 'gym', 'pool', 'parking', 'spa', 'fitness'],
+      policies: ['policy', 'policies', 'check-in', 'check-out', 'cancellation', 'rules', 'terms']
+    };
+    
+    // Find the most relevant category
+    let primaryCategory = null;
+    let maxMatches = 0;
+    
+    for (const [category, keywords] of Object.entries(searchCategories)) {
+      const matches = keywords.filter(keyword => messageLower.includes(keyword)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        primaryCategory = category;
+      }
+    }
+    
+    console.log(`Primary category detected: ${primaryCategory}`);
+    console.log(`User message: "${message}"`);
+    
+    // Extract specific sections from documents based on the query
+    documents.forEach(doc => {
+      console.log(`Processing document: ${doc.title}`);
+      
+      // Extract specific section based on user query
+      const extractedSection = extractSpecificSection(doc.content, messageLower);
+      
+      if (extractedSection && extractedSection.content.trim()) {
+        console.log(`Found relevant section: ${extractedSection.heading}`);
+        relevantContent.push({
+          title: doc.title,
+          content: extractedSection.content,
+          heading: extractedSection.heading,
+          relevanceScore: extractedSection.relevanceScore
+        });
+        sources.push(doc.title);
+      }
+    });
+    
+    // Sort by relevance score
+    relevantContent.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    
+    console.log(`Found ${relevantContent.length} relevant sections`);
+    
+    // Generate response based on extracted sections
+    let reply = "";
+    
+    if (relevantContent.length > 0) {
+      const topContent = relevantContent.slice(0, 2); // Use top 2 most relevant sections
+      
+      if (primaryCategory === 'menu' || messageLower.includes('food') || messageLower.includes('menu')) {
+        reply = generateSectionResponse(topContent, hotel, 'Food Menu');
+      } else if (primaryCategory === 'services' || messageLower.includes('service')) {
+        reply = generateSectionResponse(topContent, hotel, 'Room Services');
+      } else if (primaryCategory === 'amenities' || messageLower.includes('amenities')) {
+        reply = generateSectionResponse(topContent, hotel, 'Hotel Amenities');
+      } else if (primaryCategory === 'policies' || messageLower.includes('policy')) {
+        reply = generateSectionResponse(topContent, hotel, 'Hotel Policies');
+      } else {
+        reply = generateSectionResponse(topContent, hotel, 'Information');
+      }
+    } else {
+      // No relevant sections found
+      reply = `I'd be happy to help you with information about ${hotel.name}. We're located in ${hotel.locationText}. ` +
+              `I can provide information about our services, dining options, amenities, and policies. ` +
+              `What specific aspect would you like to know more about?`;
+    }
+    
+    return ok(res, { 
+      reply: reply.trim(),
+      sources: sources.slice(0, 3),
+      category: primaryCategory
+    });
+  } catch (err) {
+    console.error("Chat error:", err);
+    return next(err);
+  }
+});
+
+// Function to extract specific sections from document content
+function extractSpecificSection(content, query) {
+  const lines = content.split('\n');
+  let bestSection = null;
+  let maxScore = 0;
+  
+  // Find headings and their content
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Check if this line is a heading
+    const isHeading = line.endsWith(':') && line.length < 50 && line.length > 3;
+    
+    if (isHeading) {
+      const heading = line.replace(':', '').trim();
+      const headingLower = heading.toLowerCase();
+      
+      // Calculate relevance score for this heading
+      let score = 0;
+      const queryWords = query.split(' ').filter(word => word.length > 2);
+      
+      queryWords.forEach(word => {
+        if (headingLower.includes(word)) {
+          score += 3; // High score for heading match
+        }
+      });
+      
+      // Specific keyword matching
+      if (query.includes('food') || query.includes('menu')) {
+        if (headingLower.includes('food') || headingLower.includes('menu')) {
+          score += 5;
+        }
+      }
+      if (query.includes('service')) {
+        if (headingLower.includes('service')) {
+          score += 5;
+        }
+      }
+      if (query.includes('amenities')) {
+        if (headingLower.includes('amenities') || headingLower.includes('facilities')) {
+          score += 5;
+        }
+      }
+      
+      if (score > 0) {
+        // Extract content under this heading
+        let sectionContent = '';
+        let j = i + 1;
+        
+        // Get all lines until next heading or end of document
+        while (j < lines.length) {
+          const nextLine = lines[j].trim();
+          
+          // Stop if we hit another heading
+          if (nextLine.endsWith(':') && nextLine.length < 50 && nextLine.length > 3) {
+            break;
+          }
+          
+          if (nextLine) {
+            sectionContent += nextLine + '\n';
+          }
+          j++;
+        }
+        
+        if (score > maxScore && sectionContent.trim()) {
+          maxScore = score;
+          bestSection = {
+            heading: heading,
+            content: sectionContent.trim(),
+            relevanceScore: score
+          };
+        }
+      }
+    }
+  }
+  
+  console.log(`Best section found: ${bestSection?.heading} (score: ${maxScore})`);
+  return bestSection;
+}
+
+// Function to generate response for specific sections
+function generateSectionResponse(content, hotel, sectionType) {
+  let response = `Here's information about ${sectionType} at ${hotel.name}:\n\n`;
+  
+  content.forEach(section => {
+    if (section.heading) {
+      response += `📋 ${section.heading}:\n`;
+    }
+    
+    const lines = section.content.split('\n');
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      if (trimmedLine) {
+        if (trimmedLine.startsWith('- ')) {
+          response += `• ${trimmedLine.substring(2)}\n`;
+        } else if (trimmedLine.startsWith('•')) {
+          response += `${trimmedLine}\n`;
+        } else {
+          response += `• ${trimmedLine}\n`;
+        }
+      }
+    });
+    response += '\n';
+  });
+  
+  if (response === `Here's information about ${sectionType} at ${hotel.name}:\n\n`) {
+    response += `I don't have specific information about ${sectionType.toLowerCase()} right now. Please contact our front desk for detailed information.`;
+  }
+  
+  return response;
+}
+
 export default router;

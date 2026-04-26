@@ -6,6 +6,7 @@ import Results from "./pages/Results.jsx";
 import HotelDetails from "./pages/HotelDetails.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
 import Booking from "./pages/Booking.jsx";
+import BookingPage from "./pages/BookingPage.jsx";
 import Confirmation from "./pages/Confirmation.jsx";
 import Concierge from "./pages/Concierge.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/results" element={<Results />} />
           <Route path="/hotels/:hotelId" element={<HotelDetails />} />
           <Route path="/booking/:hotelId" element={<Booking />} />
+          <Route path="/book/:hotelId" element={<BookingPage />} />
           <Route path="/confirmation/:bookingId" element={<Confirmation />} />
           <Route path="/concierge/:bookingId" element={<Concierge />} />
           <Route path="/staff" element={<StaffDashboard />} />

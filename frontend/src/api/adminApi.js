@@ -55,3 +55,10 @@ export async function getHotelBookings(token, hotelId) {
   });
   return data.data;
 }
+
+export async function deleteHotelDocument(token, documentId) {
+  const { data } = await axiosClient.delete(`/admin/hotel-documents/${documentId}`, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}

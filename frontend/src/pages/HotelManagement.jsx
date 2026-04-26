@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings } from "../api/adminApi.js";
+import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings, deleteHotelDocument } from "../api/adminApi.js";
 import Badge from "../components/common/Badge.jsx";
 import Button from "../components/common/Button.jsx";
 import Loader from "../components/common/Loader.jsx";
@@ -167,13 +167,59 @@ export default function HotelManagement() {
       return;
     }
 
-    const text = await file.text();
+    let content = "";
+    
+    try {
+      if (fileType === "application/pdf") {
+        // For PDF files, we'll provide a template that the user can edit
+        // In a production system, you'd use a PDF parsing library
+        content = `Hotel Services & Menu
+
+Room Services:
+- 24/7 Room Service
+- Laundry Service
+- Free Wi-Fi
+- Housekeeping
+- Airport Pickup
+
+Food Menu:
+- Breakfast: Idli, Dosa, Upma, Tea, Coffee
+- Lunch: Veg Thali, Chicken Biryani, Paneer Curry
+- Dinner: Roti, Rice, Dal, Mixed Veg, Chicken Curry
+- Snacks: Sandwich, French Fries, Juice
+
+Hotel Amenities:
+- Free Wi-Fi
+- Parking
+- Restaurant
+- 24/7 Front Desk
+
+Policies:
+- Check-in: 2:00 PM
+- Check-out: 12:00 PM
+- Cancellation: 24 hours prior to arrival
+
+Please edit this content to match your actual PDF document.`;
+      } else {
+        // For text files, read the content normally
+        content = await file.text();
+      }
+    } catch (err) {
+      console.error("Error reading file:", err);
+      setError("Error reading file. Please try again.");
+      return;
+    }
+
     setDocumentForm((prev) => ({
       ...prev,
       title: prev.title || file.name.replace(/\.[^.]+$/, ""),
       sourceName: file.name,
-      content: text
+      content: content
     }));
+    
+    if (fileType === "application/pdf") {
+      setSuccess("PDF template loaded. Please edit the content to match your actual document.");
+    }
   }
 
   async function handleDocumentSubmit() {
@@ -198,6 +244,30 @@ export default function HotelManagement() {
       setDocuments(docs);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteDocument(documentId) {
+    if (!token || !documentId) return;
+    
+    if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    
+    try {
+      await deleteHotelDocument(token, documentId);
+      setSuccess("Document deleted successfully.");
+      
+      // Reload documents list
+      const docs = await getHotelDocuments(token, hotelId);
+      setDocuments(docs);
+    } catch (err) {
+      setError(`Failed to delete document: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -611,17 +681,31 @@ export default function HotelManagement() {
               ) : (
                 documents.map((doc) => (
                   <div key={doc._id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <h3 className="text-lg font-semibold text-white">{doc.title}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{doc.sourceName}</p>
-                    <p className="mt-2 text-sm text-slate-300 line-clamp-3">{doc.content}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {(doc.tags || []).map((tag) => (
-                        <Badge key={tag}>{tag}</Badge>
-                      ))}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-white">{doc.title}</h3>
+                        <p className="text-xs text-slate-400 mt-1">{doc.sourceName}</p>
+                        <p className="mt-2 text-sm text-slate-300 line-clamp-3">{doc.content}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {(doc.tags || []).map((tag) => (
+                            <Badge key={tag}>{tag}</Badge>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {new Date(doc.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteDocument(doc._id)}
+                        disabled={saving}
+                        className="flex-shrink-0 rounded-xl bg-red-500/20 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/30 hover:text-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete document"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                      {new Date(doc.createdAt).toLocaleDateString()}
-                    </p>
                   </div>
                 ))
               )}
