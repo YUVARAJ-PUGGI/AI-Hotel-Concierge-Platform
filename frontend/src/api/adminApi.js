@@ -7,6 +7,13 @@ export async function getAdminHotels(token) {
   return data.data;
 }
 
+export async function createAdminHotel(token, payload) {
+  const { data } = await axiosClient.post("/admin/hotels", payload, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
 export async function getHotelDocuments(token, hotelId) {
   const { data } = await axiosClient.get(`/admin/hotel-documents${hotelId ? `?hotelId=${hotelId}` : ""}`, {
     headers: authHeaders(token)

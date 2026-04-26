@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { createHotelDocument, getAdminHotels, getHotelDocuments } from "../api/adminApi.js";
+import { createAdminHotel, createHotelDocument, getAdminHotels, getHotelDocuments } from "../api/adminApi.js";
+import { fetchSession } from "../api/sessionApi.js";
 import Button from "../components/common/Button.jsx";
 import Badge from "../components/common/Badge.jsx";
 import Loader from "../components/common/Loader.jsx";
@@ -13,7 +14,7 @@ function splitTags(tagString) {
 }
 
 export default function AdminPanel() {
-  const { state } = useAppStore();
+  const { state, dispatch } = useAppStore();
   const token = state.session.adminToken;
 
   const [hotels, setHotels] = useState([]);
@@ -21,8 +22,21 @@ export default function AdminPanel() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creatingHotel, setCreatingHotel] = useState(false);
+  const [recoveringSession, setRecoveringSession] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [hotelForm, setHotelForm] = useState({
+    name: "",
+    locationText: "",
+    description: "",
+    startingPrice: "",
+    rating: "",
+    photoUrl: "",
+    amenities: "",
+    latitude: "",
+    longitude: ""
+  });
   const [form, setForm] = useState({
     title: "",
     sourceName: "manual upload",
@@ -108,8 +122,87 @@ export default function AdminPanel() {
     }
   }
 
-  if (!token) {
+  async function handleCreateHotel() {
+    if (!token) return;
+
+    setCreatingHotel(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const created = await createAdminHotel(token, {
+        ...hotelForm,
+        amenities: splitTags(hotelForm.amenities)
+      });
+
+      const hotelList = await getAdminHotels(token);
+      setHotels(hotelList);
+      setSelectedHotelId(created.id);
+      setHotelForm({
+        name: "",
+        locationText: "",
+        description: "",
+        startingPrice: "",
+        rating: "",
+        photoUrl: "",
+        amenities: "",
+        latitude: "",
+        longitude: ""
+      });
+      setSuccess("Hotel created successfully. You can now upload hotel documents.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreatingHotel(false);
+    }
+  }
+
+  async function handleRecoverAdminSession() {
+    setRecoveringSession(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const admin = await fetchSession("admin");
+      dispatch({
+        type: "SESSION_READY",
+        payload: {
+          guestToken: state.session.guestToken,
+          staffToken: state.session.staffToken,
+          adminToken: admin.token,
+          guest: state.session.guest,
+          staff: state.session.staff,
+          admin: admin.user
+        }
+      });
+      setSuccess("Admin session recovered. You can now manage hotels and documents.");
+    } catch (err) {
+      setError(err.message || "Unable to recover admin session");
+    } finally {
+      setRecoveringSession(false);
+    }
+  }
+
+  if (!state.session.ready) {
     return <Loader rows={5} />;
+  }
+
+  if (!token) {
+    return (
+      <section className="mx-auto max-w-2xl card-glass surface-elevated rounded-[1.75rem] p-6 text-center">
+        <p className="text-xs uppercase tracking-[0.32em] text-amber-100">Admin access</p>
+        <h1 className="mt-3 text-2xl font-semibold text-white">Admin session is not available</h1>
+        <p className="mt-3 text-sm leading-7 text-slate-300">
+          We could not load the admin token. This usually happens when backend session bootstrap fails.
+        </p>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <Button onClick={handleRecoverAdminSession} disabled={recoveringSession}>
+            {recoveringSession ? "Recovering..." : "Recover Admin Session"}
+          </Button>
+        </div>
+        {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+      </section>
+    );
   }
 
   return (
@@ -146,6 +239,77 @@ export default function AdminPanel() {
       </aside>
 
       <section className="space-y-6">
+        <div className="card-glass surface-elevated rounded-[1.75rem] p-6">
+          <h2 className="text-xl font-semibold text-white">Add new hotel</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Create a hotel first, then upload hotel-specific documents so concierge answers are grounded.
+          </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <input
+              value={hotelForm.name}
+              onChange={(event) => setHotelForm({ ...hotelForm, name: event.target.value })}
+              placeholder="Hotel name"
+              className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.locationText}
+              onChange={(event) => setHotelForm({ ...hotelForm, locationText: event.target.value })}
+              placeholder="Location text"
+              className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.startingPrice}
+              onChange={(event) => setHotelForm({ ...hotelForm, startingPrice: event.target.value })}
+              placeholder="Starting price (e.g. 3200)"
+              className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.rating}
+              onChange={(event) => setHotelForm({ ...hotelForm, rating: event.target.value })}
+              placeholder="Rating (e.g. 4.5)"
+              className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.latitude}
+              onChange={(event) => setHotelForm({ ...hotelForm, latitude: event.target.value })}
+              placeholder="Latitude (optional)"
+              className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.longitude}
+              onChange={(event) => setHotelForm({ ...hotelForm, longitude: event.target.value })}
+              placeholder="Longitude (optional)"
+              className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.photoUrl}
+              onChange={(event) => setHotelForm({ ...hotelForm, photoUrl: event.target.value })}
+              placeholder="Photo URL"
+              className="md:col-span-2 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              value={hotelForm.amenities}
+              onChange={(event) => setHotelForm({ ...hotelForm, amenities: event.target.value })}
+              placeholder="Amenities (comma-separated)"
+              className="md:col-span-2 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <textarea
+              value={hotelForm.description}
+              onChange={(event) => setHotelForm({ ...hotelForm, description: event.target.value })}
+              rows={3}
+              placeholder="Short description"
+              className="md:col-span-2 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={handleCreateHotel} disabled={creatingHotel || !hotelForm.name || !hotelForm.locationText}>
+              {creatingHotel ? "Creating..." : "Create hotel"}
+            </Button>
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
           {[
             { label: "Documents", value: documents.length },

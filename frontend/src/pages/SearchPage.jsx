@@ -4,6 +4,28 @@ import { apiRequest } from "../api/client.js";
 
 const QUICK_FILTERS = ["Breakfast", "Pool", "Wi-Fi", "Late Checkout", "Room Service"];
 
+function getUserCoords() {
+  if (typeof window === "undefined" || !window.navigator?.geolocation) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    window.navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({ lat: position.coords.latitude, lng: position.coords.longitude });
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 2500 }
+    );
+  });
+}
+
+function formatDistance(distanceMeters) {
+  if (!Number.isFinite(distanceMeters)) return null;
+  if (distanceMeters < 1000) return `${distanceMeters} m`;
+  return `${(distanceMeters / 1000).toFixed(1)} km`;
+}
+
 export default function SearchPage() {
   const [params] = useSearchParams();
   const initialQuery = params.get("q") || "quiet hotel near metro under 3500 with breakfast";
@@ -17,15 +39,22 @@ export default function SearchPage() {
     setError("");
 
     try {
+      const coords = await getUserCoords();
       const data = await apiRequest("/hotels/search", {
         method: "POST",
         body: {
-          lat: null,
-          lng: null,
-          query: searchText
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+          query: searchText,
+          maxDistanceMeters: 15000
         }
       });
-      setHotels(data);
+      setHotels(
+        data.map((hotel) => ({
+          ...hotel,
+          distance: formatDistance(hotel.distanceMeters)
+        }))
+      );
     } catch (err) {
       setError(err.message);
     } finally {

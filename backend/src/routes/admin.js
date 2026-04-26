@@ -33,6 +33,67 @@ router.get("/admin/hotels", authenticate, requireAdmin, async (req, res, next) =
   }
 });
 
+router.post("/admin/hotels", authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const {
+      name,
+      description = "",
+      locationText,
+      startingPrice,
+      photoUrl = "",
+      rating,
+      amenities = [],
+      latitude,
+      longitude
+    } = req.body;
+
+    if (!name || !locationText) {
+      return fail(res, "VALIDATION_ERROR", "name and locationText are required", 400);
+    }
+
+    const parsedStartingPrice = Number(startingPrice);
+    const parsedRating = Number(rating);
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+
+    const hasGeo = Number.isFinite(parsedLatitude) && Number.isFinite(parsedLongitude);
+
+    const hotel = await Hotel.create({
+      name: String(name).trim(),
+      description: String(description || "").trim(),
+      locationText: String(locationText).trim(),
+      startingPrice: Number.isFinite(parsedStartingPrice) ? parsedStartingPrice : 2500,
+      photoUrl: String(photoUrl || "").trim(),
+      rating: Number.isFinite(parsedRating) ? parsedRating : 4.0,
+      amenities: Array.isArray(amenities)
+        ? amenities.map((item) => String(item).trim()).filter(Boolean)
+        : String(amenities || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+      geo: hasGeo
+        ? { type: "Point", coordinates: [parsedLongitude, parsedLatitude] }
+        : { type: "Point", coordinates: [77.6205, 12.9352] }
+    });
+
+    return ok(
+      res,
+      {
+        id: hotel._id,
+        name: hotel.name,
+        locationText: hotel.locationText,
+        startingPrice: hotel.startingPrice,
+        photoUrl: hotel.photoUrl,
+        rating: hotel.rating,
+        amenities: hotel.amenities
+      },
+      201
+    );
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.get("/admin/hotel-documents", authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { hotelId } = req.query;
