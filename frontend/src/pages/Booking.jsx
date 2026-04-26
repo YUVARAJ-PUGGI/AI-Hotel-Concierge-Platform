@@ -20,13 +20,21 @@ export default function Booking() {
   const [hotel, setHotel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  
+  // Get room ID and dates from URL query parameters
+  const searchParams = new URLSearchParams(window.location.search);
+  const roomId = searchParams.get('roomId');
+  const urlCheckIn = searchParams.get('checkIn');
+  const urlCheckOut = searchParams.get('checkOut');
+  
   const [form, setForm] = useState({
     name: state.session.guest?.name || "",
     phone: "",
     govtIdType: "Aadhaar",
     govtIdNumber: "",
-    checkInDate: nextDay(1),
-    checkOutDate: nextDay(2)
+    checkInDate: urlCheckIn || nextDay(1),
+    checkOutDate: urlCheckOut || nextDay(2)
   });
 
   useEffect(() => {
@@ -42,21 +50,38 @@ export default function Booking() {
   const bookingPayload = useMemo(
     () => ({
       hotelId,
+      roomId: roomId, // Add room ID to payload
       checkInDate: form.checkInDate,
       checkOutDate: form.checkOutDate,
       totalAmount: Number(hotel?.startingPrice || 2500),
       govtIdType: form.govtIdType,
       govtIdNumber: form.govtIdNumber
     }),
-    [form.checkInDate, form.checkOutDate, form.govtIdNumber, form.govtIdType, hotel?.startingPrice, hotelId]
+    [form.checkInDate, form.checkOutDate, form.govtIdNumber, form.govtIdType, hotel?.startingPrice, hotelId, roomId]
   );
 
   async function handleSubmit() {
+    // Validate form
+    if (!form.name || !form.phone || !form.govtIdNumber) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
     setSubmitting(true);
+    setError("");
+    
     try {
+      console.log("Creating booking with payload:", bookingPayload);
+      console.log("Guest token:", state.session.guestToken);
+      
       const data = await createBooking(bookingPayload, state.session.guestToken);
+      console.log("Booking created:", data);
+      
       dispatch({ type: "BOOKING_UPDATE", payload: { current: data.booking, confirmation: data } });
       navigate(`/confirmation/${data.booking._id}`);
+    } catch (err) {
+      console.error("Booking error:", err);
+      setError(err.response?.data?.error?.message || err.message || "Failed to create booking. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +94,14 @@ export default function Booking() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <BookingSummary hotel={hotel} />
-      <GuestForm form={form} onChange={setForm} onSubmit={handleSubmit} loading={submitting} />
+      <div>
+        {error && (
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+        <GuestForm form={form} onChange={setForm} onSubmit={handleSubmit} loading={submitting} />
+      </div>
     </div>
   );
 }

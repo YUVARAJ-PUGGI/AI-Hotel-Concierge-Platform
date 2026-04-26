@@ -6,6 +6,7 @@ const RoomSchema = new mongoose.Schema(
     roomNumber: { type: String, required: true },
     floor: { type: Number, required: true },
     type: { type: String, required: true },
+    price: { type: Number, required: true, default: 2500 },
     status: {
       type: String,
       enum: ["occupied", "checkout_pending", "dirty", "in_progress", "inspecting", "ready"],
@@ -24,7 +25,8 @@ const RoomSchema = new mongoose.Schema(
       notes: { type: String, default: "" }
     },
     amenities: [{ type: String }],
-    maxOccupancy: { type: Number, default: 2 }
+    maxOccupancy: { type: Number, default: 2 },
+    capacity: { type: Number, default: 2 }
   },
   { timestamps: true }
 );

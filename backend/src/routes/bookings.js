@@ -10,76 +10,72 @@ import { emitToBooking } from "../socket/emitter.js";
 const router = Router();
 
 router.post("/bookings", authenticate, async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const { hotelId, checkInDate, checkOutDate, totalAmount, govtIdType, govtIdNumber } = req.body;
+    const { hotelId, roomId, checkInDate, checkOutDate, totalAmount, govtIdType, govtIdNumber } = req.body;
+
+    // If roomId is provided, use that specific room, otherwise find any ready room
+    const roomQuery = roomId 
+      ? { _id: roomId, hotelId, status: "ready" }
+      : { hotelId, status: "ready" };
+
+    // Prepare update object - only include statusUpdatedBy if it's a valid ObjectId
+    const updateObj = { 
+      status: "checkout_pending", 
+      statusUpdatedAt: new Date()
+    };
+    
+    // Only add statusUpdatedBy if userId is a valid ObjectId format
+    if (req.user.userId && mongoose.Types.ObjectId.isValid(req.user.userId)) {
+      updateObj.statusUpdatedBy = req.user.userId;
+    }
 
     const room = await Room.findOneAndUpdate(
-      { hotelId, status: "ready" },
-      { $set: { status: "checkout_pending", statusUpdatedAt: new Date(), statusUpdatedBy: req.user.userId } },
-      { new: true, session }
+      roomQuery,
+      { $set: updateObj },
+      { new: true }
     );
 
     if (!room) {
-      await session.abortTransaction();
-      return fail(res, "SOLD_OUT", "Room just sold out", 409);
+      return fail(res, "SOLD_OUT", roomId ? "This room is no longer available" : "Room just sold out", 409);
     }
 
-    const booking = await Booking.create(
-      [
-        {
-          guestId: req.user.userId,
-          hotelId,
-          roomId: room._id,
-          checkInDate,
-          checkOutDate,
-          totalAmount,
-          govtIdType,
-          govtIdNumber,
-          status: "confirmed",
-          paymentStatus: "initiated"
-        }
-      ],
-      { session }
-    );
+    const booking = await Booking.create({
+      guestId: req.user.userId,
+      hotelId,
+      roomId: room._id,
+      checkInDate,
+      checkOutDate,
+      totalAmount,
+      govtIdType,
+      govtIdNumber,
+      status: "confirmed",
+      paymentStatus: "initiated"
+    });
 
-    const conversation = await Conversation.create(
-      [
-        {
-          bookingId: booking[0]._id,
-          guestId: req.user.userId,
-          hotelId
-        }
-      ],
-      { session }
-    );
+    const conversation = await Conversation.create({
+      bookingId: booking._id,
+      guestId: req.user.userId,
+      hotelId
+    });
 
     await Room.updateOne(
       { _id: room._id },
       {
         $set: {
-          nextBookingId: booking[0]._id,
+          nextBookingId: booking._id,
           nextCheckInAt: new Date(checkInDate)
         }
-      },
-      { session }
+      }
     );
 
-    await session.commitTransaction();
-
-    emitToBooking(booking[0]._id, "BOOKING_CONFIRMED", {
-      bookingId: booking[0]._id,
-      conversationId: conversation[0]._id
+    emitToBooking(booking._id, "BOOKING_CONFIRMED", {
+      bookingId: booking._id,
+      conversationId: conversation._id
     });
 
-    return ok(res, { booking: booking[0], conversation: conversation[0] }, 201);
+    return ok(res, { booking, conversation }, 201);
   } catch (err) {
-    await session.abortTransaction();
     return next(err);
-  } finally {
-    session.endSession();
   }
 });
 

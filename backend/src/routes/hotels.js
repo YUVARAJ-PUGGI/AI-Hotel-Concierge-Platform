@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Hotel } from "../models/Hotel.js";
 import { Room } from "../models/Room.js";
+import { Booking } from "../models/Booking.js";
 import { ok } from "../utils/apiResponse.js";
 
 const router = Router();
@@ -14,7 +15,8 @@ router.post("/hotels/search", async (req, res, next) => {
       maxPrice = null,
       minRating = 0,
       amenities = [],
-      limit = 30
+      limit = 30,
+      showAll = false
     } = req.body;
 
     const parsedLng = Number(lng);
@@ -43,7 +45,7 @@ router.post("/hotels/search", async (req, res, next) => {
       baseMatch.amenities = { $all: amenities };
     }
 
-    const hotels = hasGeo
+    const hotels = hasGeo && !showAll
       ? await Hotel.aggregate([
           {
             $geoNear: {
@@ -61,6 +63,8 @@ router.post("/hotels/search", async (req, res, next) => {
           { $sort: { rating: -1, startingPrice: 1 } },
           { $limit: parsedLimit }
         ]);
+
+    console.log(`Found ${hotels.length} hotels, hasGeo: ${hasGeo}, showAll: ${showAll}`);
 
     const hotelIds = hotels.map((hotel) => hotel._id);
     const readyRooms = await Room.aggregate([
@@ -103,7 +107,8 @@ router.post("/hotels/search", async (req, res, next) => {
           rankScore
         };
       })
-      .filter((hotel) => hotel.readyRooms > 0)
+      // Remove the filter that requires readyRooms > 0
+      // .filter((hotel) => hotel.readyRooms > 0)
       .sort((a, b) => b.rankScore - a.rankScore);
 
     return ok(res, data);
@@ -122,6 +127,121 @@ router.get("/hotels/:hotelId", async (req, res, next) => {
     const readyRooms = await Room.countDocuments({ hotelId: hotel._id, status: "ready" });
     return ok(res, { ...hotel, readyRooms });
   } catch (err) {
+    return next(err);
+  }
+});
+
+router.get("/hotels/:hotelId/rooms", async (req, res, next) => {
+  try {
+    const hotel = await Hotel.findById(req.params.hotelId).lean();
+    if (!hotel) {
+      return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Hotel not found" } });
+    }
+
+    const rooms = await Room.find({ hotelId: req.params.hotelId }).sort({ roomNumber: 1 }).lean();
+    
+    // Format rooms for frontend
+    const formattedRooms = rooms.map(room => ({
+      id: room._id,
+      roomNumber: room.roomNumber,
+      type: room.type,
+      capacity: room.capacity || room.maxOccupancy,
+      amenities: room.amenities || [],
+      status: room.status,
+      price: room.price || hotel.startingPrice
+    }));
+
+    return ok(res, formattedRooms);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post("/hotels/:hotelId/rooms/availability", async (req, res, next) => {
+  try {
+    const { checkInDate, checkOutDate } = req.body;
+    
+    console.log("Availability check request:", {
+      hotelId: req.params.hotelId,
+      checkInDate,
+      checkOutDate
+    });
+    
+    if (!checkInDate || !checkOutDate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: { code: "VALIDATION_ERROR", message: "checkInDate and checkOutDate are required" } 
+      });
+    }
+
+    const hotel = await Hotel.findById(req.params.hotelId).lean();
+    if (!hotel) {
+      return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Hotel not found" } });
+    }
+
+    const rooms = await Room.find({ hotelId: req.params.hotelId }).sort({ roomNumber: 1 }).lean();
+    console.log("Found rooms:", rooms.length);
+    
+    const requestedCheckIn = new Date(checkInDate);
+    const requestedCheckOut = new Date(checkOutDate);
+    
+    // Get all bookings that might conflict with the requested dates
+    const conflictingBookings = await Booking.find({
+      hotelId: req.params.hotelId,
+      status: { $in: ["confirmed", "checked_in"] }, // Only consider active bookings
+      $or: [
+        // Booking starts during requested period
+        {
+          checkInDate: { $gte: requestedCheckIn, $lt: requestedCheckOut }
+        },
+        // Booking ends during requested period
+        {
+          checkOutDate: { $gt: requestedCheckIn, $lte: requestedCheckOut }
+        },
+        // Booking spans the entire requested period
+        {
+          checkInDate: { $lte: requestedCheckIn },
+          checkOutDate: { $gte: requestedCheckOut }
+        }
+      ]
+    }).lean();
+    
+    console.log("Conflicting bookings found:", conflictingBookings.length);
+    console.log("Conflicting bookings:", conflictingBookings);
+    
+    // Create a set of booked room IDs for the requested dates
+    const bookedRoomIds = new Set(conflictingBookings.map(booking => booking.roomId.toString()));
+    console.log("Booked room IDs:", Array.from(bookedRoomIds));
+    
+    // Format rooms with availability status
+    const roomsWithAvailability = rooms.map(room => {
+      const isBooked = bookedRoomIds.has(room._id.toString());
+      const isReady = room.status === "ready";
+      const isAvailable = isReady && !isBooked;
+      
+      console.log(`Room ${room.roomNumber}:`, {
+        status: room.status,
+        isReady,
+        isBooked,
+        isAvailable
+      });
+      
+      return {
+        id: room._id,
+        roomNumber: room.roomNumber,
+        type: room.type,
+        capacity: room.capacity || room.maxOccupancy,
+        amenities: room.amenities || [],
+        status: room.status,
+        price: room.price || hotel.startingPrice,
+        isAvailable
+      };
+    });
+
+    console.log("Returning rooms with availability:", roomsWithAvailability);
+    return ok(res, roomsWithAvailability);
+  } catch (err) {
+    console.error("Error in availability check:", err);
     return next(err);
   }
 });

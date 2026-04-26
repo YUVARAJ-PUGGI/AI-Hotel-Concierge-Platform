@@ -27,3 +27,31 @@ export async function createHotelDocument(token, payload) {
   });
   return data.data;
 }
+
+export async function getRooms(token, hotelId) {
+  const { data } = await axiosClient.get(`/admin/rooms?hotelId=${hotelId}`, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
+export async function createRoom(token, payload) {
+  const { data } = await axiosClient.post("/admin/rooms", payload, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
+export async function deleteRoom(token, roomId) {
+  const { data } = await axiosClient.delete(`/admin/rooms/${roomId}`, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
+export async function getHotelBookings(token, hotelId) {
+  const { data } = await axiosClient.get(`/admin/bookings?hotelId=${hotelId}`, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}

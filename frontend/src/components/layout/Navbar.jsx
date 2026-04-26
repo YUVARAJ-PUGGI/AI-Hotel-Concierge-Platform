@@ -37,6 +37,7 @@ export default function Navbar() {
           <NavItem to="/" label="Home" />
           <NavItem to="/search" label="Search" />
           <NavItem to="/staff" label="Staff" />
+          <NavItem to="/hotels-dashboard" label="Hotels" />
           <NavItem to="/admin" label="Admin" />
         </div>
       </nav>

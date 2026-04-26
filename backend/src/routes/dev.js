@@ -1,8 +1,10 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import { config } from "../config.js";
 import { Hotel } from "../models/Hotel.js";
 import { Room } from "../models/Room.js";
+import { User } from "../models/User.js";
 import { ok } from "../utils/apiResponse.js";
 
 const router = Router();
@@ -74,17 +76,57 @@ async function seedDemoData() {
   return { seeded: true, hotels: hotels.length, rooms: roomDocs.length };
 }
 
-router.get("/dev/session", (req, res) => {
-  const role = req.query.role || "guest";
-  const payload = {
-    userId: `demo-${role}`,
-    role,
-    name: role === "guest" ? "Demo Guest" : "Demo Staff",
-    email: `${role}@demo.local`
-  };
+router.get("/dev/session", async (req, res, next) => {
+  try {
+    const role = req.query.role || "guest";
+    
+    // Map frontend role names to database role names
+    const roleMap = {
+      "staff": "front_desk",
+      "front_desk": "front_desk",
+      "admin": "admin",
+      "guest": "guest"
+    };
+    
+    const dbRole = roleMap[role] || "guest";
+    
+    // Set appropriate display name
+    let displayName = "Demo Guest";
+    if (dbRole === "admin") {
+      displayName = "Demo Admin";
+    } else if (dbRole === "front_desk") {
+      displayName = "Demo Staff";
+    }
+    
+    const email = `${dbRole}@demo.local`;
+    
+    // Find or create demo user in database
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      user = await User.create({
+        name: displayName,
+        email: email,
+        role: dbRole,
+        passwordHash: "demo-no-password" // Demo users don't need real passwords
+      });
+    }
+    
+    // Return the role that the frontend expects (staff instead of front_desk for consistency)
+    const frontendRole = dbRole === "front_desk" ? "staff" : dbRole;
+    
+    const payload = {
+      userId: user._id.toString(),
+      role: frontendRole,
+      name: displayName,
+      email: email
+    };
 
-  const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
-  return ok(res, { token, user: payload });
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
+    return ok(res, { token, user: payload });
+  } catch (err) {
+    return next(err);
+  }
 });
 
 router.post("/dev/seed-demo-data", async (req, res, next) => {
@@ -100,6 +142,28 @@ router.get("/dev/seed-demo-data", async (req, res, next) => {
   try {
     const result = await seedDemoData();
     return ok(res, result);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get("/dev/debug/bookings", async (req, res, next) => {
+  try {
+    const bookings = await Booking.find({}).populate('roomId').populate('guestId').lean();
+    console.log("All bookings in database:", bookings);
+    return ok(res, { 
+      count: bookings.length, 
+      bookings: bookings.map(b => ({
+        id: b._id,
+        hotelId: b.hotelId,
+        roomId: b.roomId?._id,
+        roomNumber: b.roomId?.roomNumber,
+        guestName: b.guestId?.name,
+        checkIn: b.checkInDate,
+        checkOut: b.checkOutDate,
+        status: b.status
+      }))
+    });
   } catch (err) {
     return next(err);
   }

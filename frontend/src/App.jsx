@@ -10,6 +10,8 @@ import Confirmation from "./pages/Confirmation.jsx";
 import Concierge from "./pages/Concierge.jsx";
 import StaffDashboard from "./pages/StaffDashboard.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
+import HotelsDashboard from "./pages/HotelsDashboard.jsx";
+import HotelManagement from "./pages/HotelManagement.jsx";
 
 export default function App() {
   return (
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/concierge/:bookingId" element={<Concierge />} />
           <Route path="/staff" element={<StaffDashboard />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/hotels-dashboard" element={<HotelsDashboard />} />
+          <Route path="/hotel-management/:hotelId" element={<HotelManagement />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </PageWrapper>
