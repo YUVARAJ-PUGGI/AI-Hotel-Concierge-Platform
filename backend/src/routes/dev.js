@@ -1,11 +1,8 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
-import { Booking } from "../models/Booking.js";
 import { Hotel } from "../models/Hotel.js";
 import { Room } from "../models/Room.js";
-import { User } from "../models/User.js";
 import { ok } from "../utils/apiResponse.js";
 
 const router = Router();
@@ -77,80 +74,17 @@ async function seedDemoData() {
   return { seeded: true, hotels: hotels.length, rooms: roomDocs.length };
 }
 
-router.get("/dev/session", async (req, res, next) => {
-  try {
-    const role = req.query.role || "guest";
-    
-    // Map frontend role names to database role names
-    const roleMap = {
-      "staff": "front_desk",
-      "front_desk": "front_desk",
-      "admin": "admin",
-      "guest": "guest"
-    };
-    
-    const dbRole = roleMap[role] || "guest";
-    await seedDemoData();
-    const demoHotel = await Hotel.findOne({}).sort({ createdAt: 1 });
-    
-    // Set appropriate display name
-    let displayName = "Demo Guest";
-    if (dbRole === "admin") {
-      displayName = "Demo Admin";
-    } else if (dbRole === "front_desk") {
-      displayName = "Demo Staff";
-    }
-    
-    const email = `${dbRole}@demo.local`;
-    const passwordHash = await bcrypt.hash("password", 10);
-    const hotelId = dbRole === "front_desk" ? demoHotel?._id : null;
-    
-    // Find or create demo user in database
-    let user = await User.findOne({ email });
-    
-    if (!user) {
-      user = await User.create({
-        name: displayName,
-        email: email,
-        role: dbRole,
-        passwordHash,
-        hotelId
-      });
-    } else {
-      user.name = displayName;
-      user.role = dbRole;
-      user.passwordHash = passwordHash;
-      if (hotelId) {
-        user.hotelId = hotelId;
-      }
-      await user.save();
-    }
+router.get("/dev/session", (req, res) => {
+  const role = req.query.role || "guest";
+  const payload = {
+    userId: `demo-${role}`,
+    role,
+    name: role === "guest" ? "Demo Guest" : "Demo Staff",
+    email: `${role}@demo.local`
+  };
 
-    if (dbRole === "front_desk" && demoHotel) {
-      const alreadyAssigned = demoHotel.staff.some((member) => member.staffId.toString() === user._id.toString());
-      if (!alreadyAssigned) {
-        demoHotel.staff.push({
-          staffId: user._id,
-          role: "front_desk",
-          addedAt: new Date()
-        });
-        await demoHotel.save();
-      }
-    }
-    
-    const payload = {
-      userId: user._id.toString(),
-      role: dbRole,
-      name: displayName,
-      email: email,
-      hotelId: user.hotelId ? user.hotelId.toString() : null
-    };
-
-    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
-    return ok(res, { token, user: payload });
-  } catch (err) {
-    return next(err);
-  }
+  const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
+  return ok(res, { token, user: payload });
 });
 
 router.post("/dev/seed-demo-data", async (req, res, next) => {
@@ -166,28 +100,6 @@ router.get("/dev/seed-demo-data", async (req, res, next) => {
   try {
     const result = await seedDemoData();
     return ok(res, result);
-  } catch (err) {
-    return next(err);
-  }
-});
-
-router.get("/dev/debug/bookings", async (req, res, next) => {
-  try {
-    const bookings = await Booking.find({}).populate('roomId').populate('guestId').lean();
-    console.log("All bookings in database:", bookings);
-    return ok(res, { 
-      count: bookings.length, 
-      bookings: bookings.map(b => ({
-        id: b._id,
-        hotelId: b.hotelId,
-        roomId: b.roomId?._id,
-        roomNumber: b.roomId?.roomNumber,
-        guestName: b.guestId?.name,
-        checkIn: b.checkInDate,
-        checkOut: b.checkOutDate,
-        status: b.status
-      }))
-    });
   } catch (err) {
     return next(err);
   }

@@ -14,6 +14,67 @@ import { createEscalationTicket } from "./tickets.js";
 
 const router = Router();
 
+function detectInstantServiceIntent(message) {
+  const normalized = String(message || "").toLowerCase();
+
+  const foodKeywords = [
+    "order food",
+    "food",
+    "hungry",
+    "meal",
+    "breakfast",
+    "lunch",
+    "dinner",
+    "snack",
+    "menu",
+    "biryani",
+    "pizza",
+    "tea",
+    "coffee",
+    "room service"
+  ];
+
+  const roomServiceKeywords = [
+    "towel",
+    "housekeeping",
+    "laundry",
+    "clean",
+    "cleaning",
+    "bedsheet",
+    "blanket",
+    "pillow",
+    "water bottle",
+    "toiletries",
+    "doctor",
+    "airport pickup",
+    "airport transfer"
+  ];
+
+  const isFoodRequest = foodKeywords.some((keyword) => normalized.includes(keyword));
+  if (isFoodRequest) {
+    return {
+      answer:
+        "Your food request has been sent to room service. Our team is preparing it now and will deliver it shortly.",
+      ticketType: "room_service",
+      summaryPrefix: "Food order",
+      reason: "service_request"
+    };
+  }
+
+  const isServiceRequest = roomServiceKeywords.some((keyword) => normalized.includes(keyword));
+  if (isServiceRequest) {
+    return {
+      answer:
+        "Done. I have notified the hotel team and your service request is now in progress.",
+      ticketType: "room_service",
+      summaryPrefix: "Service request",
+      reason: "service_request"
+    };
+  }
+
+  return null;
+}
+
 async function nextSeq(conversationId) {
   const lastMessage = await Message.findOne({ conversationId }).sort({ seq: -1 }).lean();
   return lastMessage ? lastMessage.seq + 1 : 1;
@@ -53,6 +114,50 @@ router.post("/concierge/message", authenticate, async (req, res, next) => {
       text: message,
       seq
     });
+
+    const instantIntent = detectInstantServiceIntent(message);
+    if (instantIntent) {
+      const assistantSeq = seq + 1;
+
+      await Message.create({
+        conversationId: conversation._id,
+        bookingId: booking._id,
+        hotelId: booking.hotelId,
+        sender: "assistant",
+        text: instantIntent.answer,
+        seq: assistantSeq
+      });
+
+      await createEscalationTicket({
+        bookingId: booking._id,
+        summary: `${instantIntent.summaryPrefix}: ${message}`,
+        type: instantIntent.ticketType,
+        priority: "high"
+      });
+
+      emitToBooking(booking._id, "CONCIERGE_TYPING", { typing: false });
+      emitToBooking(booking._id, "MESSAGE_RECEIVED", {
+        sender: "assistant",
+        text: instantIntent.answer,
+        seq: assistantSeq,
+        escalated: true
+      });
+
+      emitToHotelStaff(booking.hotelId, "CONCIERGE_MESSAGE", {
+        bookingId: booking._id,
+        hotelId: booking.hotelId,
+        sender: "assistant",
+        text: instantIntent.answer,
+        seq: assistantSeq,
+        escalated: true
+      });
+
+      return ok(res, {
+        text: instantIntent.answer,
+        escalated: true,
+        reason: instantIntent.reason
+      });
+    }
 
     emitToBooking(booking._id, "CONCIERGE_TYPING", { typing: true });
 

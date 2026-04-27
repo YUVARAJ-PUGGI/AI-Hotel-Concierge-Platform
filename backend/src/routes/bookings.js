@@ -10,81 +10,82 @@ import { emitToBooking } from "../socket/emitter.js";
 const router = Router();
 
 router.post("/bookings", authenticate, async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { hotelId, roomId, checkInDate, checkOutDate, totalAmount, govtIdType, govtIdNumber } = req.body;
-
-    // If roomId is provided, use that specific room, otherwise find any ready room
-    const roomQuery = roomId 
-      ? { _id: roomId, hotelId, status: "ready" }
-      : { hotelId, status: "ready" };
-
-    // Prepare update object - only include statusUpdatedBy if it's a valid ObjectId
-    const updateObj = { 
-      status: "checkout_pending", 
-      statusUpdatedAt: new Date()
-    };
-    
-    // Only add statusUpdatedBy if userId is a valid ObjectId format
-    if (req.user.userId && mongoose.Types.ObjectId.isValid(req.user.userId)) {
-      updateObj.statusUpdatedBy = req.user.userId;
-    }
+    const { hotelId, checkInDate, checkOutDate, totalAmount, govtIdType, govtIdNumber } = req.body;
 
     const room = await Room.findOneAndUpdate(
-      roomQuery,
-      { $set: updateObj },
-      { new: true }
+      { hotelId, status: "ready" },
+      { $set: { status: "checkout_pending", statusUpdatedAt: new Date(), statusUpdatedBy: req.user.userId } },
+      { new: true, session }
     );
 
     if (!room) {
-      return fail(res, "SOLD_OUT", roomId ? "This room is no longer available" : "Room just sold out", 409);
+      await session.abortTransaction();
+      return fail(res, "SOLD_OUT", "Room just sold out", 409);
     }
 
-    const booking = await Booking.create({
-      guestId: req.user.userId,
-      hotelId,
-      roomId: room._id,
-      checkInDate,
-      checkOutDate,
-      totalAmount,
-      govtIdType,
-      govtIdNumber,
-      status: "confirmed",
-      paymentStatus: "initiated"
-    });
+    const booking = await Booking.create(
+      [
+        {
+          guestId: req.user.userId,
+          hotelId,
+          roomId: room._id,
+          checkInDate,
+          checkOutDate,
+          totalAmount,
+          govtIdType,
+          govtIdNumber,
+          status: "confirmed",
+          paymentStatus: "initiated"
+        }
+      ],
+      { session }
+    );
 
-    const conversation = await Conversation.create({
-      bookingId: booking._id,
-      guestId: req.user.userId,
-      hotelId
-    });
+    const conversation = await Conversation.create(
+      [
+        {
+          bookingId: booking[0]._id,
+          guestId: req.user.userId,
+          hotelId
+        }
+      ],
+      { session }
+    );
 
     await Room.updateOne(
       { _id: room._id },
       {
         $set: {
-          nextBookingId: booking._id,
+          nextBookingId: booking[0]._id,
           nextCheckInAt: new Date(checkInDate)
         }
-      }
+      },
+      { session }
     );
 
-    emitToBooking(booking._id, "BOOKING_CONFIRMED", {
-      bookingId: booking._id,
-      conversationId: conversation._id
+    await session.commitTransaction();
+
+    emitToBooking(booking[0]._id, "BOOKING_CONFIRMED", {
+      bookingId: booking[0]._id,
+      conversationId: conversation[0]._id
     });
 
-    return ok(res, { booking, conversation }, 201);
+    return ok(res, { booking: booking[0], conversation: conversation[0] }, 201);
   } catch (err) {
+    await session.abortTransaction();
     return next(err);
+  } finally {
+    session.endSession();
   }
 });
 
 router.get("/bookings/:bookingId", authenticate, async (req, res, next) => {
   try {
-    const booking = await Booking.findOne({ _id: req.params.bookingId, guestId: req.user.userId })
-      .populate('hotelId', 'name locationText photoUrl')
-      .populate('roomId', 'roomNumber type');
-      
+    const booking = await Booking.findOne({ _id: req.params.bookingId, guestId: req.user.userId });
     if (!booking) {
       return fail(res, "NOT_FOUND", "Booking not found", 404);
     }
@@ -97,11 +98,11 @@ router.get("/bookings/:bookingId", authenticate, async (req, res, next) => {
 router.get("/bookings", authenticate, async (req, res, next) => {
   try {
     const bookings = await Booking.find({ guestId: req.user.userId })
-      .populate('hotelId', 'name locationText photoUrl')
-      .populate('roomId', 'roomNumber type')
+      .populate("hotelId", "name locationText photoUrl")
+      .populate("roomId", "roomNumber type")
       .sort({ createdAt: -1 })
       .lean();
-      
+
     return ok(res, bookings);
   } catch (err) {
     return next(err);

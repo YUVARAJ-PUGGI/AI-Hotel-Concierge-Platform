@@ -69,7 +69,7 @@ export default function UserDashboard() {
             Sign Out
           </Button>
         </div>
-        <h1 className="text-4xl font-semibold text-white">FindHotel, {state.session.guest?.name || "Guest"}!</h1>
+        <h1 className="text-4xl font-semibold text-white">Welcome, {state.session.guest?.name || "Guest"}!</h1>
         <p className="mt-4 text-slate-300">
           Ready for your next stay? Find hotels and manage your current bookings from one place.
         </p>
@@ -135,7 +135,7 @@ export default function UserDashboard() {
                       <p><span className="text-slate-500">Room:</span> {booking.roomId?.roomNumber || "N/A"} ({booking.roomId?.type || "Standard"})</p>
                       <p><span className="text-slate-500">Check-in:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
                       <p><span className="text-slate-500">Check-out:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
-                      <p><span className="text-slate-500">Amount:</span> Rs. {booking.totalAmount}</p>
+                      <p><span className="text-slate-500">Amount:</span> ₹{booking.totalAmount}</p>
                     </div>
                   </div>
                   
@@ -146,7 +146,7 @@ export default function UserDashboard() {
                         className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-400 hover:to-indigo-400 border-none shadow-[0_0_20px_rgba(59,130,246,0.5)]" 
                         onClick={() => navigate(`/concierge/${booking._id}`)}
                       >
-                        Chat with Concierge
+                        ✨ Chat with Concierge
                       </Button>
                     ) : (
                       <Button variant="secondary" className="w-full cursor-not-allowed opacity-50" disabled>

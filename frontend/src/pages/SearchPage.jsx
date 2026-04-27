@@ -1,101 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
-import { getAdminHotels } from "../api/adminApi.js";
-import { useAppStore } from "../store/AppStoreContext.jsx";
 
 const QUICK_FILTERS = ["Breakfast", "Pool", "Wi-Fi", "Late Checkout", "Room Service"];
 
-function getUserCoords() {
-  if (typeof window === "undefined" || !window.navigator?.geolocation) {
-    return Promise.resolve(null);
-  }
-
-  return new Promise((resolve) => {
-    window.navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({ lat: position.coords.latitude, lng: position.coords.longitude });
-      },
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 2500 }
-    );
-  });
-}
-
-function formatDistance(distanceMeters) {
-  if (!Number.isFinite(distanceMeters)) return null;
-  if (distanceMeters < 1000) return `${distanceMeters} m`;
-  return `${(distanceMeters / 1000).toFixed(1)} km`;
-}
-
 export default function SearchPage() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
-  const { state } = useAppStore();
-  const token = state.session.adminToken;
-  const initialQuery = params.get("q") || "";
+  const initialQuery = params.get("q") || "quiet hotel near metro under 3500 with breakfast";
   const [query, setQuery] = useState(initialQuery);
   const [hotels, setHotels] = useState([]);
-  const [allHotels, setAllHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadAllHotels() {
+  async function loadHotels(searchText = query) {
     setLoading(true);
     setError("");
 
     try {
-      // Fetch all registered hotels using the public search endpoint
       const data = await apiRequest("/hotels/search", {
         method: "POST",
-        body: { showAll: true, limit: 100 }
+        body: {
+          lat: null,
+          lng: null,
+          query: searchText
+        }
       });
-      console.log("Loaded hotels:", data);
-      
-      // Add readyRooms property (set to 0 for now)
-      const hotelsWithRooms = data.map(hotel => ({
-        ...hotel,
-        readyRooms: hotel.readyRooms || 0,
-        amenities: hotel.amenities || []
-      }));
-      
-      setAllHotels(hotelsWithRooms);
-      setHotels(hotelsWithRooms);
+      setHotels(data);
     } catch (err) {
-      console.error("Error loading hotels:", err);
-      setError(`Failed to load hotels: ${err.message}`);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadHotels(searchText = query) {
-    if (!searchText || searchText.trim() === "") {
-      // If no search query, show all hotels
-      setHotels(allHotels);
-      return;
-    }
-
-    // Filter hotels by search query
-    const searchLower = searchText.toLowerCase();
-    const filtered = allHotels.filter(hotel => 
-      hotel.name.toLowerCase().includes(searchLower) ||
-      hotel.locationText.toLowerCase().includes(searchLower) ||
-      (hotel.amenities && hotel.amenities.some(a => a.toLowerCase().includes(searchLower)))
-    );
-    
-    setHotels(filtered);
-  }
-
-  function handleBookRoom(hotel) {
-    // Navigate to the new booking page
-    navigate(`/book/${hotel.id}`);
-  }
-
   useEffect(() => {
-    loadAllHotels();
+    loadHotels(initialQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [initialQuery]);
 
   const visibleHotels = useMemo(() => hotels, [hotels]);
 
@@ -115,9 +56,8 @@ export default function SearchPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && loadHotels(query)}
               className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-4 text-base text-white outline-none placeholder:text-slate-500"
-              placeholder="Search by hotel name, location, or amenities..."
+              placeholder="quiet hotel near Koramangala metro under 3500 with breakfast"
             />
             <button
               type="button"
@@ -133,26 +73,13 @@ export default function SearchPage() {
               <button
                 key={filter}
                 type="button"
-                onClick={() => {
-                  const newQuery = filter.toLowerCase();
-                  setQuery(newQuery);
-                  loadHotels(newQuery);
-                }}
+                onClick={() => setQuery((prev) => `${prev} ${filter.toLowerCase()}`.trim())}
                 className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
               >
                 {filter}
               </button>
             ))}
           </div>
-
-          {!loading && allHotels.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3">
-              <p className="text-sm text-emerald-200">
-                ✓ Showing {hotels.length} of {allHotels.length} registered hotels
-                {query && ` matching "${query}"`}
-              </p>
-            </div>
-          )}
         </div>
       </section>
 
@@ -173,25 +100,8 @@ export default function SearchPage() {
           ) : null}
 
           {!loading && visibleHotels.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-slate-300 text-center">
-                {allHotels.length === 0 
-                  ? "No hotels registered yet. Please add hotels from the Admin panel."
-                  : "No hotels match your search. Try a different query or clear the search to see all hotels."}
-              </p>
-              {allHotels.length > 0 && query && (
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => {
-                      setQuery("");
-                      setHotels(allHotels);
-                    }}
-                    className="rounded-2xl bg-gradient-to-r from-amber-300 to-rose-300 px-6 py-3 font-semibold text-slate-950 transition hover:from-amber-200 hover:to-rose-200"
-                  >
-                    Show All Hotels
-                  </button>
-                </div>
-              )}
+            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6 text-slate-300">
+              No hotels found. Try a different query.
             </div>
           ) : null}
 
@@ -233,18 +143,18 @@ export default function SearchPage() {
                   </div>
 
                   <div className="flex gap-3">
+                        <Link
+                          to={`/hotels/${hotel.id}`}
+                          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center font-semibold text-white transition hover:bg-white/10"
+                        >
+                          View details
+                        </Link>
                     <Link
-                      to={`/hotels/${hotel.id}`}
-                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center font-semibold text-white transition hover:bg-white/10"
-                    >
-                      View details
-                    </Link>
-                    <button
-                      onClick={() => handleBookRoom(hotel)}
+                      to={`/booking/${hotel.id}`}
                       className="flex-1 rounded-2xl bg-gradient-to-r from-amber-300 to-rose-300 px-4 py-3 text-center font-semibold text-slate-950 transition hover:from-amber-200 hover:to-rose-200"
                     >
-                      Book Room
-                    </button>
+                      Book now
+                    </Link>
                   </div>
                 </div>
               </article>

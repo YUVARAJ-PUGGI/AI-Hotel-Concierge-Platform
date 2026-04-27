@@ -47,7 +47,7 @@ export default function Navbar() {
           <NavItem to={isStaffLoggedIn ? "/staff" : "/login/staff"} label="Staff" />
           <NavItem to="/hotels-dashboard" label="Hotels" />
           <NavItem to="/admin" label="Admin" />
-          {!isGuestLoggedIn ? <NavItem to="/login/user" label="FindHotel" /> : null}
+          {!isGuestLoggedIn ? <NavItem to="/login/user" label="User Login" /> : null}
         </div>
       </nav>
     </header>

@@ -9,14 +9,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["guest", "front_desk", "housekeeper", "manager", "admin"],
       default: "guest"
-    },
-    hotelId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Hotel",
-      required: false 
-    },
-    phone: { type: String, default: "" },
-    isActive: { type: Boolean, default: true }
+    }
   },
   { timestamps: true }
 );

@@ -22,14 +22,9 @@ export default function TicketCard({ ticket, onResolve }) {
       <p className="mt-1 text-xs text-slate-400">{new Date(ticket.createdAt).toLocaleString()}</p>
 
       {!isResolved ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button className="flex-1" onClick={() => onResolve(ticket._id)}>
-            Resolve
-          </Button>
-          <Button className="flex-1" variant="secondary" onClick={() => onInProgress?.(ticket._id)}>
-            In Progress
-          </Button>
-        </div>
+        <Button className="mt-4" onClick={() => onResolve(ticket._id)}>
+          Resolve
+        </Button>
       ) : null}
     </article>
   );

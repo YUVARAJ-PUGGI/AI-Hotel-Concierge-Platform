@@ -18,6 +18,7 @@ export default function Concierge() {
   const [booking, setBooking] = useState(null);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [pageError, setPageError] = useState("");
   const [requestStatus, setRequestStatus] = useState([
     { label: "Welcome support", status: "Completed" }
   ]);
@@ -42,8 +43,8 @@ export default function Concierge() {
         ]);
         setMessages(history.map((item) => ({ sender: item.sender, text: item.text, seq: item.seq })));
         setBooking(bookingData);
-      } catch (err) {
-        console.error("Failed to load concierge data", err);
+      } catch {
+        setPageError("Unable to load concierge messages right now.");
       }
     }
 
@@ -89,23 +90,27 @@ export default function Concierge() {
 
       if (response.escalated) {
         setRequestStatus((prev) => [
-          { label: "Escalated request", status: "Pending" },
+          {
+            label: response.reason === "service_request" ? "Service request accepted" : "Escalated request",
+            status: response.reason === "service_request" ? "In Progress" : "Pending"
+          },
           ...prev
         ]);
       }
-    } catch (err) {
-      console.error("Failed to send message:", err);
+    } catch {
       setMessages((prev) => [...prev, { sender: "assistant", text: "Sorry, there was an error processing your message. Please try again.", seq: Date.now() }]);
     }
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[280px_1fr_280px]">
-      <aside className="card-glass rounded-3xl p-5">
+    <div className="relative grid gap-4 xl:grid-cols-[290px_1fr_290px]">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/10 blur-3xl" />
+
+      <aside className="card-glass concierge-side-panel rounded-3xl p-5 animate-fade-up">
         <h3 className="text-lg font-semibold text-white">Booking Summary</h3>
         <div className="mt-4 space-y-3 text-sm">
           {summaryItems.map((item) => (
-            <div key={item.label} className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
               <p className="text-xs uppercase tracking-wide text-slate-400">{item.label}</p>
               <p className="mt-1 text-slate-100">{item.value}</p>
             </div>
@@ -122,20 +127,28 @@ export default function Concierge() {
         </div>
       </aside>
 
-      <ChatWindow
-        messages={messages}
-        typing={typing}
-        input={input}
-        onInputChange={setInput}
-        onSend={() => postMessage(input)}
-        disabled={booking?.status !== "checked_in"}
-      />
+      <div className="space-y-3">
+        {pageError ? (
+          <div className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+            {pageError}
+          </div>
+        ) : null}
 
-      <aside className="card-glass rounded-3xl p-5">
+        <ChatWindow
+          messages={messages}
+          typing={typing}
+          input={input}
+          onInputChange={setInput}
+          onSend={() => postMessage(input)}
+          disabled={booking?.status !== "checked_in"}
+        />
+      </div>
+
+      <aside className="card-glass concierge-side-panel rounded-3xl p-5 animate-fade-up">
         <h3 className="text-lg font-semibold text-white">Service Status</h3>
         <div className="mt-4 space-y-3">
           {requestStatus.map((entry, index) => (
-            <div key={`${entry.label}-${index}`} className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <div key={`${entry.label}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.04] p-3 transition-soft hover:border-amber-200/30">
               <p className="text-sm text-slate-100">{entry.label}</p>
               <div className="mt-2">
                 <Badge tone={entry.status === "Completed" ? "success" : entry.status === "In Progress" ? "warning" : "accent"}>

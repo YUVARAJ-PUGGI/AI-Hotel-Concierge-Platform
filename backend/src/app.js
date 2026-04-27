@@ -7,29 +7,13 @@ import conciergeRoutes from "./routes/concierge.js";
 import ticketRoutes from "./routes/tickets.js";
 import devRoutes from "./routes/dev.js";
 import adminRoutes from "./routes/admin.js";
-import authRoutes from "./routes/auth.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
 
 export function createApp() {
   const app = express();
-  const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
-  app.use(
-    cors({
-      origin(origin, callback) {
-        if (!origin) {
-          return callback(null, true);
-        }
-
-        if (config.frontendOrigins.includes(origin) || localhostPattern.test(origin)) {
-          return callback(null, true);
-        }
-
-        return callback(new Error("Not allowed by CORS"));
-      }
-    })
-  );
+  app.use(cors({ origin: config.frontendOrigin }));
   app.use(express.json({ limit: "2mb" }));
 
   app.use("/api", healthRoutes);
@@ -39,7 +23,6 @@ export function createApp() {
   app.use("/api", conciergeRoutes);
   app.use("/api", ticketRoutes);
   app.use("/api", adminRoutes);
-  app.use("/api", authRoutes);
 
   app.use(errorHandler);
 

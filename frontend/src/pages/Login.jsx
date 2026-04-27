@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import Button from "../components/common/Button.jsx";
 import { loginUser, registerUser } from "../api/authApi.js";
-import { fetchSession } from "../api/sessionApi.js";
 import { useAppStore } from "../store/AppStoreContext.jsx";
 
 function normalizeRole(roleParam) {
@@ -75,31 +74,7 @@ export default function Login() {
     }
   }
 
-  async function handleDemoLogin() {
-    setError("");
-    setLoading(true);
-
-    try {
-      const sessionRole = loginType === "user" ? "guest" : loginType;
-      const data = await fetchSession(sessionRole);
-
-      dispatch({
-        type: loginType === "staff" ? "LOGIN_STAFF" : loginType === "admin" ? "LOGIN_ADMIN" : "LOGIN_GUEST",
-        payload: {
-          token: data.token,
-          user: data.user
-        }
-      });
-
-      navigate(loginType === "staff" ? "/staff" : loginType === "admin" ? "/admin" : "/dashboard");
-    } catch (err) {
-      setError(err.response?.data?.error?.message || err.message || "Could not start a demo session.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const title = loginType === "admin" ? "Admin Login" : loginType === "staff" ? "Staff Login" : isRegister ? "Create FindHotel Account" : "FindHotel Login";
+  const title = loginType === "admin" ? "Admin Login" : loginType === "staff" ? "Staff Login" : isRegister ? "Create User Account" : "User Login";
   const subtitle =
     loginType === "admin"
       ? "Sign in with your admin account to manage hotels and operations."
@@ -107,7 +82,7 @@ export default function Login() {
       ? "Sign in with your staff account to manage live guest requests."
       : isRegister
       ? "Create your guest account to book stays and use concierge chat."
-      : "Sign in to find hotels, manage bookings, and chat with concierge.";
+      : "Sign in to manage bookings and chat with concierge.";
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)] w-full items-center justify-center p-4">
@@ -178,12 +153,6 @@ export default function Login() {
             </Button>
           </div>
         </form>
-
-        <div className="mt-4">
-          <Button type="button" variant="secondary" className="w-full py-3" disabled={loading} onClick={handleDemoLogin}>
-            {loading ? "Starting demo..." : `Continue with Demo ${loginType === "user" ? "FindHotel" : loginType === "staff" ? "Staff" : "Admin"}`}
-          </Button>
-        </div>
 
         <div className="mt-6 text-center text-sm text-slate-400">
           {isRoleRegisterAllowed ? (

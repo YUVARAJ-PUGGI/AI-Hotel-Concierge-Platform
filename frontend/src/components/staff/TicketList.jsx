@@ -2,7 +2,7 @@ import EmptyState from "../common/EmptyState.jsx";
 import Loader from "../common/Loader.jsx";
 import TicketCard from "./TicketCard.jsx";
 
-export default function TicketList({ tickets, loading, onResolve, onInProgress }) {
+export default function TicketList({ tickets, loading, onResolve }) {
   if (loading) {
     return <Loader rows={4} />;
   }
@@ -19,7 +19,7 @@ export default function TicketList({ tickets, loading, onResolve, onInProgress }
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {tickets.map((ticket) => (
-        <TicketCard key={ticket._id} ticket={ticket} onResolve={onResolve} onInProgress={onInProgress} />
+        <TicketCard key={ticket._id} ticket={ticket} onResolve={onResolve} />
       ))}
     </div>
   );

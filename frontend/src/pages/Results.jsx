@@ -5,28 +5,6 @@ import HotelList from "../components/search/HotelList.jsx";
 import { searchHotels } from "../api/hotelApi.js";
 import { useAppStore } from "../store/AppStoreContext.jsx";
 
-function getUserCoords() {
-  if (typeof window === "undefined" || !window.navigator?.geolocation) {
-    return Promise.resolve(null);
-  }
-
-  return new Promise((resolve) => {
-    window.navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({ lat: position.coords.latitude, lng: position.coords.longitude });
-      },
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 2500 }
-    );
-  });
-}
-
-function formatDistance(distanceMeters) {
-  if (!Number.isFinite(distanceMeters)) return null;
-  if (distanceMeters < 1000) return `${distanceMeters} m`;
-  return `${(distanceMeters / 1000).toFixed(1)} km`;
-}
-
 function mapWhyPick(hotel) {
   if (hotel.rating >= 4.6) return "Top Rated";
   if (hotel.startingPrice <= 3000) return "Best Value";
@@ -53,16 +31,9 @@ export default function Results() {
     async function loadResults() {
       dispatch({ type: "SEARCH_UPDATE", payload: { loading: true, error: "" } });
       try {
-        const coords = await getUserCoords();
-        const data = await searchHotels({
-          query: initialQuery,
-          lat: coords?.lat ?? null,
-          lng: coords?.lng ?? null,
-          maxDistanceMeters: 15000
-        });
+        const data = await searchHotels({ query: initialQuery, lat: null, lng: null });
         const enriched = data.map((hotel) => ({
           ...hotel,
-          distance: formatDistance(hotel.distanceMeters),
           whyPick: mapWhyPick(hotel),
           cancellation: deriveCancellation(hotel)
         }));

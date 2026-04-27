@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import TicketList from "../components/staff/TicketList.jsx";
-import { getTickets, resolveTicket, updateTicketStatus } from "../api/staffApi.js";
+import { getTickets, resolveTicket } from "../api/staffApi.js";
 import { useAppStore } from "../store/AppStoreContext.jsx";
 import { useSocket } from "../hooks/useSocket.js";
 import Badge from "../components/common/Badge.jsx";
@@ -11,7 +11,6 @@ export default function StaffDashboard() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState([]);
-  const staffHotelId = state.session.staff?.hotelId || "";
 
   async function loadTickets() {
     if (!state.session.staffToken) return;
@@ -92,11 +91,6 @@ export default function StaffDashboard() {
     await loadTickets();
   }
 
-  async function handleMarkInProgress(ticketId) {
-    await updateTicketStatus(ticketId, "in_progress", state.session.staffToken);
-    await loadTickets();
-  }
-
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[1.75rem] border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/20 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
@@ -105,9 +99,6 @@ export default function StaffDashboard() {
           <h1 className="mt-3 text-4xl font-semibold text-white">Live guest support feed</h1>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
             Watch guest chat activity arrive in real time, resolve escalations, and keep the hotel response loop tight.
-          </p>
-          <p className="mt-3 text-sm text-amber-200/80">
-            {staffHotelId ? `Hotel scope: ${staffHotelId}` : "No hotel assigned to this staff account."}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -150,7 +141,7 @@ export default function StaffDashboard() {
             <Badge tone="accent">Auto-refresh</Badge>
           </div>
           <div className="mt-4">
-            <TicketList tickets={tickets} loading={loading} onResolve={handleResolve} onInProgress={handleMarkInProgress} />
+            <TicketList tickets={tickets} loading={loading} onResolve={handleResolve} />
           </div>
         </div>
       </div>

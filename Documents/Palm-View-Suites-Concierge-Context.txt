@@ -1,0 +1,78 @@
+HOTEL PROFILE
+Hotel Name: Palm View Suites
+Hotel Description: Quiet family-friendly hotel with in-room dining, laundry support, and front desk assistance.
+Location: Indiranagar, Bengaluru
+Front Desk Contact: +91-80-5555-1200
+Emergency Contact: +91-80-5555-1299
+
+CHECK-IN AND CHECK-OUT
+Check-in Time: 2:00 PM
+Check-out Time: 11:00 AM
+Early Check-in Policy: Subject to room availability and additional charges.
+Late Check-out Policy: Subject to availability; charges apply after 1:00 PM.
+
+ROOM SERVICE HOURS
+In-Room Dining: 6:30 AM to 11:00 PM
+Night Service (Limited Menu): 11:00 PM to 1:00 AM
+Housekeeping: 7:00 AM to 10:00 PM
+Laundry Pickup: 8:00 AM to 8:00 PM
+
+FOOD MENU
+Breakfast (6:30 AM to 11:00 AM)
+- Idli Sambar: INR 160
+- Masala Dosa: INR 190
+- Veg Sandwich: INR 170
+- Omelette Toast: INR 180
+- Tea: INR 80
+- Filter Coffee: INR 90
+
+Lunch (12:00 PM to 3:30 PM)
+- Veg Thali: INR 320
+- Paneer Butter Masala + Roti Basket: INR 360
+- Chicken Biryani: INR 420
+- Dal Tadka + Jeera Rice: INR 280
+
+Dinner (7:00 PM to 11:00 PM)
+- Butter Naan (2 pcs): INR 120
+- Mixed Veg Curry: INR 290
+- Chicken Curry: INR 390
+- Steamed Rice: INR 140
+- Gulab Jamun (2 pcs): INR 110
+
+Snacks (All Day)
+- French Fries: INR 170
+- Club Sandwich: INR 230
+- Fresh Lime Soda: INR 120
+- Packaged Water (1L): INR 60
+
+ROOM SERVICE REQUEST CATALOG
+- Towels: 1 to 4 towels per request
+- Toiletries: dental kit, shaving kit, comb, shower cap
+- Bedding: extra pillow, extra blanket, bedsheet replacement
+- Cleaning: quick cleaning, deep cleaning
+- Laundry: wash-and-fold, express laundry
+- Medical: doctor on call (through front desk)
+- Transport: airport pickup/drop support via front desk
+
+SERVICE RESPONSE TARGETS
+- Food order confirmation: within 1 minute
+- Food delivery: 25 to 40 minutes
+- Towel/toiletry delivery: within 10 minutes
+- Housekeeping request: within 20 minutes
+- Laundry pickup: within 30 minutes
+
+PAYMENT AND BILLING
+Accepted Modes: Room charge, UPI, card, cash
+Food billing: Added to room folio unless guest requests immediate payment.
+
+POLICIES
+Outside food: Allowed with prior notice to front desk.
+Quiet hours: 10:30 PM to 7:00 AM.
+Smoking: Allowed only in designated areas.
+Pets: Not allowed.
+
+CHATBOT INSTRUCTIONS FOR THIS HOTEL
+- Use this document as the source for all hotel facts, timings, menu items, and pricing.
+- If a request is a service action (food order, towels, housekeeping, laundry), acknowledge instantly and confirm staff has been notified.
+- If information is missing from this document, respond with:
+  I do not have that information right now. I will connect you with the front desk.
