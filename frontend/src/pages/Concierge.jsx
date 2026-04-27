@@ -4,6 +4,7 @@ import ChatWindow from "../components/chat/ChatWindow.jsx";
 import QuickActions from "../components/chat/QuickActions.jsx";
 import Badge from "../components/common/Badge.jsx";
 import { getConciergeHistory, sendConciergeMessage } from "../api/conciergeApi.js";
+import { getBookingById } from "../api/bookingApi.js";
 import { useAppStore } from "../store/AppStoreContext.jsx";
 import { useSocket } from "../hooks/useSocket.js";
 
@@ -14,6 +15,7 @@ export default function Concierge() {
   const token = state.session.guestToken;
 
   const [messages, setMessages] = useState([]);
+  const [booking, setBooking] = useState(null);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [requestStatus, setRequestStatus] = useState([
@@ -32,12 +34,20 @@ export default function Concierge() {
   useEffect(() => {
     if (!bookingId || !token) return;
 
-    async function loadHistory() {
-      const history = await getConciergeHistory(bookingId, token);
-      setMessages(history.map((item) => ({ sender: item.sender, text: item.text, seq: item.seq })));
+    async function loadData() {
+      try {
+        const [history, bookingData] = await Promise.all([
+          getConciergeHistory(bookingId, token),
+          getBookingById(bookingId, token)
+        ]);
+        setMessages(history.map((item) => ({ sender: item.sender, text: item.text, seq: item.seq })));
+        setBooking(bookingData);
+      } catch (err) {
+        console.error("Failed to load concierge data", err);
+      }
     }
 
-    loadHistory();
+    loadData();
   }, [bookingId, token]);
 
   useEffect(() => {
@@ -69,18 +79,23 @@ export default function Concierge() {
 
   async function postMessage(text) {
     const trimmed = text.trim();
-    if (!trimmed || !token) return;
+    if (!trimmed || !token || booking?.status !== "checked_in") return;
 
     setMessages((prev) => [...prev, { sender: "guest", text: trimmed, seq: Date.now() }]);
     setInput("");
 
-    const response = await sendConciergeMessage({ bookingId, message: trimmed }, token);
+    try {
+      const response = await sendConciergeMessage({ bookingId, message: trimmed }, token);
 
-    if (response.escalated) {
-      setRequestStatus((prev) => [
-        { label: "Escalated request", status: "Pending" },
-        ...prev
-      ]);
+      if (response.escalated) {
+        setRequestStatus((prev) => [
+          { label: "Escalated request", status: "Pending" },
+          ...prev
+        ]);
+      }
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      setMessages((prev) => [...prev, { sender: "assistant", text: "Sorry, there was an error processing your message. Please try again.", seq: Date.now() }]);
     }
   }
 
@@ -99,7 +114,11 @@ export default function Concierge() {
 
         <h4 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-300">Quick actions</h4>
         <div className="mt-3">
-          <QuickActions onAction={postMessage} />
+          {booking?.status === "checked_in" ? (
+            <QuickActions onAction={postMessage} />
+          ) : (
+            <p className="text-xs text-slate-500">Actions available after check-in.</p>
+          )}
         </div>
       </aside>
 
@@ -109,6 +128,7 @@ export default function Concierge() {
         input={input}
         onInputChange={setInput}
         onSend={() => postMessage(input)}
+        disabled={booking?.status !== "checked_in"}
       />
 
       <aside className="card-glass rounded-3xl p-5">

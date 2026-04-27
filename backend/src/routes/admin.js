@@ -4,7 +4,10 @@ import { Hotel } from "../models/Hotel.js";
 import { HotelDocument } from "../models/HotelDocument.js";
 import { Room } from "../models/Room.js";
 import { Booking } from "../models/Booking.js";
+import { User } from "../models/User.js";
 import { ok, fail } from "../utils/apiResponse.js";
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const router = Router();
 
@@ -343,6 +346,159 @@ router.get("/admin/bookings", authenticate, requireAdmin, async (req, res, next)
     }));
 
     return ok(res, formattedBookings);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.patch("/admin/bookings/:bookingId/status", authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['confirmed', 'checked_in', 'checked_out', 'cancelled'].includes(status)) {
+      return fail(res, "VALIDATION_ERROR", "Invalid status", 400);
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return fail(res, "NOT_FOUND", "Booking not found", 404);
+    }
+
+    booking.status = status;
+    await booking.save();
+
+    return ok(res, booking);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+
+// Staff management endpoints
+router.get("/admin/hotels/:hotelId/staff", authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { hotelId } = req.params;
+
+    if (!mongoose.isValidObjectId(hotelId)) {
+      return fail(res, "VALIDATION_ERROR", "Invalid hotel ID", 400);
+    }
+
+    const hotel = await Hotel.findById(hotelId).populate({
+      path: "staff.staffId",
+      select: "name email phone role hotelId isActive"
+    });
+
+    if (!hotel) {
+      return fail(res, "NOT_FOUND", "Hotel not found", 404);
+    }
+
+    const staffList = hotel.staff.map((staffMember) => ({
+      staffId: staffMember.staffId._id,
+      name: staffMember.staffId.name,
+      email: staffMember.staffId.email,
+      phone: staffMember.staffId.phone || "",
+      role: staffMember.role,
+      isActive: staffMember.staffId.isActive,
+      addedAt: staffMember.addedAt
+    }));
+
+    return ok(res, staffList);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.post("/admin/hotels/:hotelId/staff", authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { hotelId } = req.params;
+    const { name, email, phone = "", role = "front_desk", password } = req.body;
+
+    if (!mongoose.isValidObjectId(hotelId)) {
+      return fail(res, "VALIDATION_ERROR", "Invalid hotel ID", 400);
+    }
+
+    if (!name || !email || !password) {
+      return fail(res, "VALIDATION_ERROR", "Name, email, and password are required", 400);
+    }
+
+    if (!["front_desk", "housekeeper", "manager"].includes(role)) {
+      return fail(res, "VALIDATION_ERROR", "Invalid staff role", 400);
+    }
+
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+      return fail(res, "NOT_FOUND", "Hotel not found", 404);
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return fail(res, "CONFLICT", "User with this email already exists", 409);
+    }
+
+    // Create new staff user
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const staffUser = await User.create({
+      name: String(name).trim(),
+      email: String(email).trim().toLowerCase(),
+      passwordHash,
+      role,
+      hotelId,
+      phone: String(phone).trim(),
+      isActive: true
+    });
+
+    // Add staff to hotel's staff array
+    hotel.staff.push({
+      staffId: staffUser._id,
+      role,
+      addedAt: new Date()
+    });
+    await hotel.save();
+
+    return ok(
+      res,
+      {
+        staffId: staffUser._id,
+        name: staffUser.name,
+        email: staffUser.email,
+        phone: staffUser.phone,
+        role: staffUser.role,
+        message: "Staff member added successfully"
+      },
+      201
+    );
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.delete("/admin/hotels/:hotelId/staff/:staffId", authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { hotelId, staffId } = req.params;
+
+    if (!mongoose.isValidObjectId(hotelId) || !mongoose.isValidObjectId(staffId)) {
+      return fail(res, "VALIDATION_ERROR", "Invalid hotel or staff ID", 400);
+    }
+
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+      return fail(res, "NOT_FOUND", "Hotel not found", 404);
+    }
+
+    // Remove staff from hotel's staff array
+    hotel.staff = hotel.staff.filter(
+      (s) => s.staffId.toString() !== staffId
+    );
+    await hotel.save();
+
+    // Deactivate the staff user (don't delete to preserve records)
+    await User.findByIdAndUpdate(staffId, { isActive: false });
+
+    return ok(res, { message: "Staff member removed successfully" });
   } catch (err) {
     return next(err);
   }

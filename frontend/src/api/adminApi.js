@@ -62,3 +62,32 @@ export async function deleteHotelDocument(token, documentId) {
   });
   return data.data;
 }
+
+export async function updateBookingStatus(token, bookingId, status) {
+  const { data } = await axiosClient.patch(`/admin/bookings/${bookingId}/status`, { status }, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
+// Staff Management Endpoints
+export async function getHotelStaff(token, hotelId) {
+  const { data } = await axiosClient.get(`/admin/hotels/${hotelId}/staff`, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
+export async function addHotelStaff(token, hotelId, staffData) {
+  const { data } = await axiosClient.post(`/admin/hotels/${hotelId}/staff`, staffData, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}
+
+export async function removeHotelStaff(token, hotelId, staffId) {
+  const { data } = await axiosClient.delete(`/admin/hotels/${hotelId}/staff/${staffId}`, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}

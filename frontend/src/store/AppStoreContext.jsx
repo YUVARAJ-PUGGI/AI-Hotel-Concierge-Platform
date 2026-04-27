@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
-import { fetchSession } from "../api/sessionApi.js";
 
 const AppStoreContext = createContext(null);
 
@@ -45,6 +44,46 @@ function reducer(state, action) {
           admin: action.payload.admin
         }
       };
+    case "LOGIN_GUEST":
+      localStorage.setItem("guestToken", action.payload.token);
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          guestToken: action.payload.token,
+          guest: action.payload.user
+        }
+      };
+    case "LOGIN_STAFF":
+      localStorage.setItem("staffToken", action.payload.token);
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          staffToken: action.payload.token,
+          staff: action.payload.user
+        }
+      };
+    case "LOGIN_ADMIN":
+      localStorage.setItem("adminToken", action.payload.token);
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          adminToken: action.payload.token,
+          admin: action.payload.user
+        }
+      };
+    case "LOGOUT_GUEST":
+      localStorage.removeItem("guestToken");
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          guestToken: "",
+          guest: null
+        }
+      };
     case "SEARCH_UPDATE":
       return {
         ...state,
@@ -80,21 +119,46 @@ export function AppStoreProvider({ children }) {
   useEffect(() => {
     async function bootstrapSession() {
       try {
-        const [guest, staff, admin] = await Promise.all([
-          fetchSession("guest"),
-          fetchSession("front_desk"),
-          fetchSession("admin")
-        ]);
+        let guestUser = null;
+        const savedGuestToken = localStorage.getItem("guestToken");
+        const savedStaffToken = localStorage.getItem("staffToken");
+        const savedAdminToken = localStorage.getItem("adminToken");
+        if (savedGuestToken) {
+          try {
+            const payload = JSON.parse(atob(savedGuestToken.split('.')[1]));
+            guestUser = payload;
+          } catch (e) {
+            localStorage.removeItem("guestToken");
+          }
+        }
+
+        let staffUser = null;
+        if (savedStaffToken) {
+          try {
+            staffUser = JSON.parse(atob(savedStaffToken.split('.')[1]));
+          } catch (e) {
+            localStorage.removeItem("staffToken");
+          }
+        }
+
+        let adminUser = null;
+        if (savedAdminToken) {
+          try {
+            adminUser = JSON.parse(atob(savedAdminToken.split('.')[1]));
+          } catch (e) {
+            localStorage.removeItem("adminToken");
+          }
+        }
 
         dispatch({
           type: "SESSION_READY",
           payload: {
-            guestToken: guest.token,
-            staffToken: staff.token,
-            adminToken: admin.token,
-            guest: guest.user,
-            staff: staff.user,
-            admin: admin.user
+            guestToken: savedGuestToken || "",
+            staffToken: savedStaffToken || "",
+            adminToken: savedAdminToken || "",
+            guest: guestUser,
+            staff: staffUser,
+            admin: adminUser
           }
         });
       } catch {

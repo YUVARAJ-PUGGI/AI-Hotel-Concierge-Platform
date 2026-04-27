@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings, deleteHotelDocument } from "../api/adminApi.js";
+import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings, deleteHotelDocument, updateBookingStatus } from "../api/adminApi.js";
+import StaffManagement from "../components/staff/StaffManagement.jsx";
 import Badge from "../components/common/Badge.jsx";
 import Button from "../components/common/Button.jsx";
 import Loader from "../components/common/Loader.jsx";
@@ -33,15 +34,6 @@ export default function HotelManagement() {
     sourceName: "manual upload",
     tags: "",
     content: ""
-  });
-
-  // Staff state
-  const [staff, setStaff] = useState([]);
-  const [staffForm, setStaffForm] = useState({
-    name: "",
-    role: "",
-    email: "",
-    phone: ""
   });
 
   // Rooms state
@@ -273,18 +265,6 @@ Please edit this content to match your actual PDF document.`;
     }
   }
 
-  function handleAddStaff() {
-    if (!staffForm.name || !staffForm.role) return;
-    setStaff([...staff, { ...staffForm, id: Date.now() }]);
-    setStaffForm({ name: "", role: "", email: "", phone: "" });
-    setSuccess("Staff member added successfully.");
-  }
-
-  function handleRemoveStaff(id) {
-    setStaff(staff.filter((s) => s.id !== id));
-    setSuccess("Staff member removed.");
-  }
-
   async function handleAddRoom() {
     if (!roomForm.roomNumber || !roomForm.type || !roomForm.price) return;
     
@@ -395,32 +375,6 @@ Please edit this content to match your actual PDF document.`;
     setShowBookingForm(false);
     setSelectedRoomForBooking(null);
     setError("");
-  }
-
-  function handleCancelBooking(roomId, bookingId) {
-    const updatedRooms = rooms.map((room) => {
-      if (room.id === roomId) {
-        return {
-          ...room,
-          bookings: room.bookings.filter((b) => b.id !== bookingId)
-        };
-      }
-      return room;
-    });
-    setRooms(updatedRooms);
-    setSuccess("Booking cancelled successfully");
-  }
-
-  function handleAddService() {
-    if (!serviceForm.name || !serviceForm.price) return;
-    setServices([...services, { ...serviceForm, id: Date.now() }]);
-    setServiceForm({ name: "", description: "", price: "", category: "" });
-    setSuccess("Service added successfully.");
-  }
-
-  function handleRemoveService(id) {
-    setServices(services.filter((s) => s.id !== id));
-    setSuccess("Service removed.");
   }
 
   if (!state.session.ready || loading) {
@@ -1133,17 +1087,16 @@ Please edit this content to match your actual PDF document.`;
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="text-slate-400 text-sm">Status:</span>
-                            <Badge 
-                              className={
-                                booking.status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-300' :
-                                booking.status === 'checked_in' ? 'bg-blue-500/20 text-blue-300' :
-                                booking.status === 'checked_out' ? 'bg-gray-500/20 text-gray-300' :
-                                booking.status === 'cancelled' ? 'bg-red-500/20 text-red-300' :
-                                'bg-yellow-500/20 text-yellow-300'
-                              }
+                            <select
+                              value={booking.status}
+                              onChange={(e) => handleBookingStatusChange(booking.id, e.target.value)}
+                              className="rounded-lg border border-white/10 bg-slate-900 px-2 py-1 text-sm text-white outline-none"
                             >
-                              {booking.status}
-                            </Badge>
+                              <option value="confirmed">Confirmed</option>
+                              <option value="checked_in">Checked In</option>
+                              <option value="checked_out">Checked Out</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-slate-400 text-sm">Payment:</span>

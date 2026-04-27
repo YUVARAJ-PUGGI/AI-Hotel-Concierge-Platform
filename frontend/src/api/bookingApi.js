@@ -13,3 +13,10 @@ export async function getBookingById(bookingId, token) {
   });
   return data.data;
 }
+
+export async function getUserBookings(token) {
+  const { data } = await axiosClient.get("/bookings", {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}

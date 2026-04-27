@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import InputBox from "./InputBox.jsx";
 
-export default function ChatWindow({ messages, typing, input, onInputChange, onSend }) {
+export default function ChatWindow({ messages, typing, input, onInputChange, onSend, disabled }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function ChatWindow({ messages, typing, input, onInputChange, onS
       </div>
 
       <div className="mt-3">
-        <InputBox value={input} onChange={onInputChange} onSend={onSend} />
+        <InputBox value={input} onChange={onInputChange} onSend={onSend} disabled={disabled} />
       </div>
     </section>
   );

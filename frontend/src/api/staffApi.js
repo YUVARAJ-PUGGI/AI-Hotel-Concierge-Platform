@@ -13,3 +13,10 @@ export async function resolveTicket(ticketId, token) {
   });
   return data.data;
 }
+
+export async function updateTicketStatus(ticketId, status, token) {
+  const { data } = await axiosClient.patch(`/staff/tickets/${ticketId}/status`, { status }, {
+    headers: authHeaders(token)
+  });
+  return data.data;
+}

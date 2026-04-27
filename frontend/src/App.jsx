@@ -13,6 +13,8 @@ import StaffDashboard from "./pages/StaffDashboard.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import HotelsDashboard from "./pages/HotelsDashboard.jsx";
 import HotelManagement from "./pages/HotelManagement.jsx";
+import Login from "./pages/Login.jsx";
+import UserDashboard from "./pages/UserDashboard.jsx";
 
 export default function App() {
   return (
@@ -27,6 +29,8 @@ export default function App() {
       <PageWrapper>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/results" element={<Results />} />
           <Route path="/hotels/:hotelId" element={<HotelDetails />} />

@@ -18,8 +18,20 @@ export default function Home() {
   const [query, setQuery] = useState(state.search.query || "quiet hotel near metro under 3000 with breakfast");
 
   function onSearch() {
+    if (!state.session.guestToken) {
+      navigate("/login");
+      return;
+    }
     dispatch({ type: "SEARCH_UPDATE", payload: { query } });
     navigate(`/search?q=${encodeURIComponent(query)}`);
+  }
+
+  function handleAuthClick() {
+    if (state.session.guestToken) {
+      dispatch({ type: "LOGOUT_GUEST" });
+    } else {
+      navigate("/login");
+    }
   }
 
   return (
@@ -42,6 +54,9 @@ export default function Home() {
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Button onClick={onSearch} className="px-6 py-3 text-base">
                 Find Hotels
+              </Button>
+              <Button variant="secondary" onClick={handleAuthClick} className="px-6 py-3 text-base">
+                {state.session.guestToken ? "Sign Out" : "Sign In"}
               </Button>
               <Link to="/admin">
                 <Button variant="secondary" className="px-6 py-3 text-base">

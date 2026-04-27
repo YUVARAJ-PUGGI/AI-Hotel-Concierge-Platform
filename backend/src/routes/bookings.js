@@ -81,11 +81,28 @@ router.post("/bookings", authenticate, async (req, res, next) => {
 
 router.get("/bookings/:bookingId", authenticate, async (req, res, next) => {
   try {
-    const booking = await Booking.findOne({ _id: req.params.bookingId, guestId: req.user.userId });
+    const booking = await Booking.findOne({ _id: req.params.bookingId, guestId: req.user.userId })
+      .populate('hotelId', 'name locationText photoUrl')
+      .populate('roomId', 'roomNumber type');
+      
     if (!booking) {
       return fail(res, "NOT_FOUND", "Booking not found", 404);
     }
     return ok(res, booking);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get("/bookings", authenticate, async (req, res, next) => {
+  try {
+    const bookings = await Booking.find({ guestId: req.user.userId })
+      .populate('hotelId', 'name locationText photoUrl')
+      .populate('roomId', 'roomNumber type')
+      .sort({ createdAt: -1 })
+      .lean();
+      
+    return ok(res, bookings);
   } catch (err) {
     return next(err);
   }

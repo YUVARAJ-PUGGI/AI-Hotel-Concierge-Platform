@@ -7,6 +7,7 @@ import conciergeRoutes from "./routes/concierge.js";
 import ticketRoutes from "./routes/tickets.js";
 import devRoutes from "./routes/dev.js";
 import adminRoutes from "./routes/admin.js";
+import authRoutes from "./routes/auth.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
 
@@ -23,6 +24,7 @@ export function createApp() {
   app.use("/api", conciergeRoutes);
   app.use("/api", ticketRoutes);
   app.use("/api", adminRoutes);
+  app.use("/api", authRoutes);
 
   app.use(errorHandler);
 

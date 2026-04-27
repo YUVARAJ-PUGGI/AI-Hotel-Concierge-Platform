@@ -5,6 +5,7 @@ import { Booking } from "../models/Booking.js";
 import { Message } from "../models/Message.js";
 import { Hotel } from "../models/Hotel.js";
 import { HotelDocument } from "../models/HotelDocument.js";
+import { Room } from "../models/Room.js";
 import { config } from "../config.js";
 import { postJsonWithTimeout } from "../utils/httpClient.js";
 import { ok, fail } from "../utils/apiResponse.js";
@@ -24,6 +25,10 @@ router.post("/concierge/message", authenticate, async (req, res, next) => {
     const booking = await Booking.findOne({ _id: bookingId, guestId: req.user.userId });
     if (!booking) {
       return fail(res, "FORBIDDEN", "Booking access denied", 403);
+    }
+    
+    if (booking.status !== "checked_in") {
+      return fail(res, "FORBIDDEN", "Chat access is only available after check-in and before check-out.", 403);
     }
 
     const conversation = await Conversation.findOne({ bookingId: booking._id });
@@ -53,8 +58,14 @@ router.post("/concierge/message", authenticate, async (req, res, next) => {
 
     const hotel = await Hotel.findById(booking.hotelId).lean();
     const hotelDocuments = await HotelDocument.find({ hotelId: booking.hotelId }).sort({ createdAt: -1 }).limit(20).lean();
+    
+    const rooms = await Room.find({ hotelId: booking.hotelId }).lean();
+    const readyRooms = rooms.filter(r => r.status === "ready");
+    const roomAvailabilityText = `Current room availability: ${readyRooms.length} rooms ready.`;
+
     const contexts = [
       hotel ? `Hotel summary: ${hotel.name}. ${hotel.description || ""} ${hotel.locationText}. Amenities: ${(hotel.amenities || []).join(", ")}` : "",
+      roomAvailabilityText,
       ...hotelDocuments.map((document) => `${document.title}: ${document.content}`)
     ].filter(Boolean);
 
@@ -85,10 +96,14 @@ router.post("/concierge/message", authenticate, async (req, res, next) => {
     });
 
     if (aiResponse.escalate) {
+      let type = "front_desk";
+      if (aiResponse.reason === "unknown_fact") type = "unknown_fact";
+      if (aiResponse.reason === "service_request") type = "room_service";
+
       await createEscalationTicket({
         bookingId: booking._id,
         summary: `Escalated from concierge: ${message}`,
-        type: aiResponse.reason === "unknown_fact" ? "unknown_fact" : "front_desk",
+        type,
         priority: "high"
       });
     }

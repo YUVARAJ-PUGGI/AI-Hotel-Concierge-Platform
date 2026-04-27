@@ -1,0 +1,123 @@
+WEEKY PROJECT PROGRESS REPORT
+PROJECT TEAM STRUCTURE
+1. Yuvaraj C Puggi — Team Lead
+Responsibilities:
+Sprint planning and goal setting
+Cross-functional team coordination
+Feature prioritization based on customer insights
+Final reviews and stakeholder communication
+2. Yashwanth G S — Frontend Developer
+Responsibilities:
+Designing UI flows (Upload, Results, Explanation, History)
+Ensuring accessibility for non-technical users
+Integration with backend APIs
+3. Vishnu H R — Backend Developer
+Responsibilities:
+Development of media analysis APIs
+Business logic implementation and validation
+Data storage and retrieval mechanisms
+4. Vinay C — Technical Documentation Lead
+Responsibilities:
+PRS documentation, use cases, and acceptance criteria
+Weekly documentation and meeting records
+Consolidation of customer insights.
+
+5. Sujal Mehta — Marketing Lead
+Responsibilities:
+Customer outreach and interview coordination
+Problem validation and messaging
+Development of USP and go-to-market strategy
+6. Swamy Kumar — GitHub & Deployment Lead
+Responsibilities:
+Repository management and branching strategy
+Deployment pipeline and release tracking
+CI/CD and version control maintenance
+7. Vishesh B V — QA & Testing Lead
+Responsibilities:
+Functional and workflow testing
+Bug tracking and regression testing
+Validation of acceptance criteria
+
+Weekly Progress Overview
+Week 1: Discovery & Problem Validation
+Customer Insights
+Designed interview questionnaires and discussion framework
+Conducted initial user interviews
+Key Insight: Users frequently encounter suspicious media but lack quick verification tools
+Project Progress
+Defined product direction (public-focused application)
+Drafted initial workflows: Upload → Verify → Explain
+Established Git repository and collaboration standards
+Team Contributions
+Defined sprint goals and conducted kickoff (Team Lead)
+Created initial UI wireframes (Frontend)
+Designed API structure (Backend)
+Drafted problem statement (Documentation)
+Collected early user feedback (Marketing)
+Set repository standards (Deployment)
+Prepared testing checklist (QA)
+
+Week 2: Customer Data Analysis & Feature Planning
+Customer Insights
+Expanded data collection from user responses
+Identified high exposure to fake content and moderate detection confidence
+Key requested features:
+Instant results
+Confidence score
+Multimodal verification
+Project Progress
+Converted insights into structured use cases
+Finalized MVP scope
+Standardized product messaging
+Team Contributions
+Finalized top use cases and MVP scope
+Improved UI clarity for results
+Implemented verdict + confidence response format
+Documented functional requirements
+Analyzed user behavior patterns
+Organized version control and releases
+Conducted scenario-based testing
+
+Week 3: Development & Explainability Enhancements
+Customer Insights
+Emphasis on explainable outputs and decision guidance
+Users prefer quick, low-friction solutions
+Project Progress
+Refined use cases with clear input-output mapping
+Added comparison and history tracking features
+Improved product differentiation messaging
+Team Contributions
+Conducted mid-sprint review and resolved risks
+Enhanced explanation UI and history interface
+Improved backend logic for context handling
+Updated business rules and acceptance criteria
+Strengthened USP and value proposition
+Managed integration and deployment testing
+Performed end-to-end testing
+
+Week 4: Finalization & Presentation Readiness
+Customer Insights
+Finalized user profiles (demographic & psychographic)
+Validated problem statement using real user data
+Prepared customer-backed narrative
+Project Progress
+Completed PRS, ICP, and use-case documentation
+Prepared presentation materials
+Finalized report and evidence documentation
+Team Contributions
+Coordinated final integration and presentation flow
+Completed UI refinements and demo preparation
+Ensured API stability and consistency
+Compiled final documentation
+Prepared pitch and market positioning
+Finalized deployment and repository cleanup
+Completed regression testing and sign-off
+ Customer Validation Summary
+Total Responses Collected: 15
+Primary User Group: Students
+Core Problem Identified:
+Frequent exposure to fake media and lack of reliable verification tools
+Validated Solution Direction:
+A fast, simple, and trustworthy pre-sharing verification system
+Adoption Insight:
+Majority of users expressed willingness to use the solution

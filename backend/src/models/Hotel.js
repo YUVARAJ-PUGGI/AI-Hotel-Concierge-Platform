@@ -20,7 +20,18 @@ const HotelSchema = new mongoose.Schema(
       }
     },
     rating: { type: Number, default: 4.0 },
-    amenities: [{ type: String }]
+    amenities: [{ type: String }],
+    staff: [
+      {
+        staffId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        role: { 
+          type: String, 
+          enum: ["front_desk", "housekeeper", "manager"],
+          default: "front_desk"
+        },
+        addedAt: { type: Date, default: Date.now }
+      }
+    ]
   },
   { timestamps: true }
 );
