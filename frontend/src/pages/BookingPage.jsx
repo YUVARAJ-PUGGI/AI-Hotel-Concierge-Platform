@@ -194,10 +194,10 @@ export default function BookingPage() {
           </div>
           <div className="flex items-end">
             <button
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/dashboard')}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center font-semibold text-white transition hover:bg-white/10"
             >
-              Back to Search
+              Back to Dashboard
             </button>
           </div>
         </div>

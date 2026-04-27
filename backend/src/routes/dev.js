@@ -1,7 +1,8 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import { config } from "../config.js";
+import { Booking } from "../models/Booking.js";
 import { Hotel } from "../models/Hotel.js";
 import { Room } from "../models/Room.js";
 import { User } from "../models/User.js";
@@ -89,6 +90,8 @@ router.get("/dev/session", async (req, res, next) => {
     };
     
     const dbRole = roleMap[role] || "guest";
+    await seedDemoData();
+    const demoHotel = await Hotel.findOne({}).sort({ createdAt: 1 });
     
     // Set appropriate display name
     let displayName = "Demo Guest";
@@ -99,6 +102,8 @@ router.get("/dev/session", async (req, res, next) => {
     }
     
     const email = `${dbRole}@demo.local`;
+    const passwordHash = await bcrypt.hash("password", 10);
+    const hotelId = dbRole === "front_desk" ? demoHotel?._id : null;
     
     // Find or create demo user in database
     let user = await User.findOne({ email });
@@ -108,18 +113,37 @@ router.get("/dev/session", async (req, res, next) => {
         name: displayName,
         email: email,
         role: dbRole,
-        passwordHash: "demo-no-password" // Demo users don't need real passwords
+        passwordHash,
+        hotelId
       });
+    } else {
+      user.name = displayName;
+      user.role = dbRole;
+      user.passwordHash = passwordHash;
+      if (hotelId) {
+        user.hotelId = hotelId;
+      }
+      await user.save();
     }
-    
-    // Return the role that the frontend expects (staff instead of front_desk for consistency)
-    const frontendRole = dbRole === "front_desk" ? "staff" : dbRole;
+
+    if (dbRole === "front_desk" && demoHotel) {
+      const alreadyAssigned = demoHotel.staff.some((member) => member.staffId.toString() === user._id.toString());
+      if (!alreadyAssigned) {
+        demoHotel.staff.push({
+          staffId: user._id,
+          role: "front_desk",
+          addedAt: new Date()
+        });
+        await demoHotel.save();
+      }
+    }
     
     const payload = {
       userId: user._id.toString(),
-      role: frontendRole,
+      role: dbRole,
       name: displayName,
-      email: email
+      email: email,
+      hotelId: user.hotelId ? user.hotelId.toString() : null
     };
 
     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });

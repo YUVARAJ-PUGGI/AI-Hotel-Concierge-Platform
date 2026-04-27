@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings, deleteHotelDocument, updateBookingStatus } from "../api/adminApi.js";
+import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings, deleteHotelDocument, updateBookingStatus, getHotelStaff, addHotelStaff, removeHotelStaff } from "../api/adminApi.js";
 import StaffManagement from "../components/staff/StaffManagement.jsx";
 import Badge from "../components/common/Badge.jsx";
 import Button from "../components/common/Button.jsx";
@@ -72,6 +72,16 @@ export default function HotelManagement() {
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
+  // Staff state
+  const [staff, setStaff] = useState([]);
+  const [staffForm, setStaffForm] = useState({
+    name: "",
+    role: "front_desk",
+    email: "",
+    phone: "",
+    password: ""
+  });
+
   useEffect(() => {
     async function loadHotelData() {
       if (!token || !hotelId) return;
@@ -97,7 +107,9 @@ export default function HotelManagement() {
           bookings: [] // Bookings will be loaded separately when needed
         })));
 
-        // TODO: Load staff and services when backend APIs are ready
+        // Load staff and services
+        const staffData = await getHotelStaff(token, hotelId);
+        setStaff(staffData);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -127,6 +139,43 @@ export default function HotelManagement() {
       loadBookings();
     }
   }, [activeTab, token, hotelId]);
+
+  async function handleAddStaff() {
+    if (!staffForm.name || !staffForm.role || !staffForm.email || !staffForm.password) {
+      setError("Please fill in all required staff fields");
+      return;
+    }
+    
+    setSaving(true);
+    setError("");
+    
+    try {
+      const newStaff = await addHotelStaff(token, hotelId, staffForm);
+      setStaff([...staff, newStaff]);
+      setStaffForm({ name: "", role: "front_desk", email: "", phone: "", password: "" });
+      setSuccess("Staff member added successfully.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRemoveStaff(staffId) {
+    if (!confirm("Are you sure you want to remove this staff member?")) return;
+    setSaving(true);
+    setError("");
+    
+    try {
+      await removeHotelStaff(token, hotelId, staffId);
+      setStaff(staff.filter((s) => s.staffId !== staffId));
+      setSuccess("Staff member removed successfully.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function handleAddService() {
     if (!serviceForm.name || !serviceForm.price) return;
@@ -524,12 +573,6 @@ Please edit this content to match your actual PDF document.`;
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
               />
               <input
-                value={staffForm.role}
-                onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
-                placeholder="Role (e.g., Manager, Receptionist)"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
-              />
-              <input
                 value={staffForm.email}
                 onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
                 placeholder="Email"
@@ -542,8 +585,24 @@ Please edit this content to match your actual PDF document.`;
                 placeholder="Phone Number"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
               />
-              <Button onClick={handleAddStaff} disabled={!staffForm.name || !staffForm.role}>
-                Add Staff Member
+              <input
+                value={staffForm.password}
+                onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                placeholder="Password"
+                type="password"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+              />
+              <select
+                value={staffForm.role}
+                onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none"
+              >
+                <option value="front_desk">Front Desk</option>
+                <option value="housekeeper">Housekeeper</option>
+                <option value="manager">Manager</option>
+              </select>
+              <Button onClick={handleAddStaff} disabled={!staffForm.name || !staffForm.role || !staffForm.email || !staffForm.password || saving}>
+                {saving ? "Adding..." : "Add Staff Member"}
               </Button>
             </div>
           </div>
@@ -555,17 +614,18 @@ Please edit this content to match your actual PDF document.`;
                 <p className="text-sm text-slate-400">No staff members added yet.</p>
               ) : (
                 staff.map((member) => (
-                  <div key={member.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div key={member.staffId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold text-white">{member.name}</h3>
-                        <p className="text-sm text-slate-400">{member.role}</p>
+                        <p className="text-sm text-slate-400 capitalize">{member.role.replace('_', ' ')}</p>
                         {member.email && <p className="text-xs text-slate-500 mt-1">{member.email}</p>}
                         {member.phone && <p className="text-xs text-slate-500">{member.phone}</p>}
                       </div>
                       <button
-                        onClick={() => handleRemoveStaff(member.id)}
+                        onClick={() => handleRemoveStaff(member.staffId)}
                         className="text-red-400 hover:text-red-300 text-sm"
+                        disabled={saving}
                       >
                         Remove
                       </button>

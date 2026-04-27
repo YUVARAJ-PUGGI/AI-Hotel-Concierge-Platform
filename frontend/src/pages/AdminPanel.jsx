@@ -44,7 +44,12 @@ export default function AdminPanel() {
 
   useEffect(() => {
     async function bootstrap() {
-      if (!token) return;
+      if (!token) {
+        if (state.session.ready && !recoveringSession) {
+          handleRecoverAdminSession();
+        }
+        return;
+      }
       setLoading(true);
       try {
         const hotelList = await getAdminHotels(token);
@@ -64,7 +69,7 @@ export default function AdminPanel() {
 
     bootstrap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, state.session.ready]);
 
   useEffect(() => {
     async function loadDocuments() {
@@ -119,14 +124,10 @@ export default function AdminPanel() {
     try {
       const admin = await fetchSession("admin");
       dispatch({
-        type: "SESSION_READY",
+        type: "LOGIN_ADMIN",
         payload: {
-          guestToken: state.session.guestToken,
-          staffToken: state.session.staffToken,
-          adminToken: admin.token,
-          guest: state.session.guest,
-          staff: state.session.staff,
-          admin: admin.user
+          token: admin.token,
+          user: admin.user
         }
       });
       setSuccess("Admin session recovered. You can now manage hotels and documents.");

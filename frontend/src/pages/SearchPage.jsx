@@ -45,20 +45,17 @@ export default function SearchPage() {
     setError("");
 
     try {
-      if (!token) {
-        setError("Loading hotels...");
-        setLoading(false);
-        return;
-      }
-
-      // Fetch all registered hotels directly from admin API
-      const data = await getAdminHotels(token);
+      // Fetch all registered hotels using the public search endpoint
+      const data = await apiRequest("/hotels/search", {
+        method: "POST",
+        body: { showAll: true, limit: 100 }
+      });
       console.log("Loaded hotels:", data);
       
       // Add readyRooms property (set to 0 for now)
       const hotelsWithRooms = data.map(hotel => ({
         ...hotel,
-        readyRooms: 0,
+        readyRooms: hotel.readyRooms || 0,
         amenities: hotel.amenities || []
       }));
       

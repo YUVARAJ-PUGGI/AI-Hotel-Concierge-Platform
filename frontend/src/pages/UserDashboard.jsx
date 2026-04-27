@@ -5,6 +5,14 @@ import { useAppStore } from "../store/AppStoreContext.jsx";
 import Button from "../components/common/Button.jsx";
 import Badge from "../components/common/Badge.jsx";
 import Loader from "../components/common/Loader.jsx";
+import SearchBar from "../components/search/SearchBar.jsx";
+
+const SEARCH_CHIPS = [
+  "Budget hotel near metro under 3000",
+  "Couple-friendly with free cancellation",
+  "Business hotel with strong Wi-Fi",
+  "Luxury stay with pool and breakfast"
+];
 
 export default function UserDashboard() {
   const { state, dispatch } = useAppStore();
@@ -14,10 +22,18 @@ export default function UserDashboard() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState(state.search.query || "quiet hotel near metro under 3000 with breakfast");
+
+  function handleSearch() {
+    const finalQuery = query.trim();
+    if (!finalQuery) return;
+    dispatch({ type: "SEARCH_UPDATE", payload: { query: finalQuery } });
+    navigate(`/results?q=${encodeURIComponent(finalQuery)}`);
+  }
 
   useEffect(() => {
     if (!token) {
-      navigate("/login");
+      navigate("/login/user");
       return;
     }
 
@@ -37,7 +53,7 @@ export default function UserDashboard() {
 
   const handleSignOut = () => {
     dispatch({ type: "LOGOUT_GUEST" });
-    navigate("/login");
+    navigate("/login/user");
   };
 
   if (!state.session.ready || loading) {
@@ -53,12 +69,12 @@ export default function UserDashboard() {
             Sign Out
           </Button>
         </div>
-        <h1 className="text-4xl font-semibold text-white">Welcome, {state.session.guest?.name || "Guest"}!</h1>
+        <h1 className="text-4xl font-semibold text-white">FindHotel, {state.session.guest?.name || "Guest"}!</h1>
         <p className="mt-4 text-slate-300">
-          Ready for your next stay? Search for hotels or manage your current bookings below.
+          Ready for your next stay? Find hotels and manage your current bookings from one place.
         </p>
-        <div className="mt-6 flex justify-center">
-          <Button onClick={() => navigate("/search")}>Find Hotels</Button>
+        <div className="mt-6 text-left">
+          <SearchBar value={query} onChange={setQuery} onSearch={handleSearch} chips={SEARCH_CHIPS} />
         </div>
       </div>
 
@@ -75,7 +91,7 @@ export default function UserDashboard() {
         {bookings.length === 0 ? (
           <div className="card-glass surface-elevated rounded-[1.75rem] p-8 text-center">
             <p className="text-slate-400">You don't have any bookings yet.</p>
-            <Button variant="secondary" onClick={() => navigate("/search")} className="mt-4">
+            <Button variant="secondary" onClick={handleSearch} className="mt-4">
               Start Exploring
             </Button>
           </div>
@@ -119,7 +135,7 @@ export default function UserDashboard() {
                       <p><span className="text-slate-500">Room:</span> {booking.roomId?.roomNumber || "N/A"} ({booking.roomId?.type || "Standard"})</p>
                       <p><span className="text-slate-500">Check-in:</span> {new Date(booking.checkInDate).toLocaleDateString()}</p>
                       <p><span className="text-slate-500">Check-out:</span> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
-                      <p><span className="text-slate-500">Amount:</span> ₹{booking.totalAmount}</p>
+                      <p><span className="text-slate-500">Amount:</span> Rs. {booking.totalAmount}</p>
                     </div>
                   </div>
                   
@@ -130,7 +146,7 @@ export default function UserDashboard() {
                         className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-400 hover:to-indigo-400 border-none shadow-[0_0_20px_rgba(59,130,246,0.5)]" 
                         onClick={() => navigate(`/concierge/${booking._id}`)}
                       >
-                        ✨ Chat with Concierge
+                        Chat with Concierge
                       </Button>
                     ) : (
                       <Button variant="secondary" className="w-full cursor-not-allowed opacity-50" disabled>
