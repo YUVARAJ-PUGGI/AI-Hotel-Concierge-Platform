@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getAdminHotels, getHotelDocuments, createHotelDocument, getRooms, createRoom, deleteRoom, getHotelBookings, deleteHotelDocument, updateBookingStatus, getHotelStaff, addHotelStaff, removeHotelStaff } from "../api/adminApi.js";
+import { fetchSession } from "../api/sessionApi.js";
 import StaffManagement from "../components/staff/StaffManagement.jsx";
 import Badge from "../components/common/Badge.jsx";
 import Button from "../components/common/Button.jsx";
@@ -17,13 +18,14 @@ function splitTags(tagString) {
 export default function HotelManagement() {
   const { hotelId } = useParams();
   const navigate = useNavigate();
-  const { state } = useAppStore();
+  const { state, dispatch } = useAppStore();
   const token = state.session.adminToken;
 
   const [hotel, setHotel] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [recoveringSession, setRecoveringSession] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -83,8 +85,37 @@ export default function HotelManagement() {
   });
 
   useEffect(() => {
+    async function ensureAdminSession() {
+      if (!state.session.ready || token || recoveringSession) return;
+
+      setRecoveringSession(true);
+      try {
+        const admin = await fetchSession("admin");
+        dispatch({
+          type: "LOGIN_ADMIN",
+          payload: {
+            token: admin.token,
+            user: admin.user
+          }
+        });
+      } catch (err) {
+        setError(err.message || "Unable to initialize admin session.");
+      } finally {
+        setRecoveringSession(false);
+      }
+    }
+
+    ensureAdminSession();
+  }, [state.session.ready, token, recoveringSession, dispatch]);
+
+  useEffect(() => {
     async function loadHotelData() {
-      if (!token || !hotelId) return;
+      if (!token || !hotelId) {
+        if (state.session.ready && !token && !recoveringSession) {
+          setLoading(false);
+        }
+        return;
+      }
       setLoading(true);
       try {
         const hotels = await getAdminHotels(token);
@@ -118,7 +149,7 @@ export default function HotelManagement() {
     }
 
     loadHotelData();
-  }, [token, hotelId]);
+  }, [token, hotelId, state.session.ready, recoveringSession]);
 
   async function loadBookings() {
     if (!token || !hotelId) return;

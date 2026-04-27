@@ -13,8 +13,23 @@ import { config } from "./config.js";
 
 export function createApp() {
   const app = express();
+  const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
-  app.use(cors({ origin: config.frontendOrigin }));
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        if (config.frontendOrigins.includes(origin) || localhostPattern.test(origin)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error("Not allowed by CORS"));
+      }
+    })
+  );
   app.use(express.json({ limit: "2mb" }));
 
   app.use("/api", healthRoutes);

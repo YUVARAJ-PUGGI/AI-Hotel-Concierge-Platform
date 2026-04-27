@@ -1,20 +1,46 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAdminHotels } from "../api/adminApi.js";
+import { fetchSession } from "../api/sessionApi.js";
 import Badge from "../components/common/Badge.jsx";
 import Button from "../components/common/Button.jsx";
 import Loader from "../components/common/Loader.jsx";
 import { useAppStore } from "../store/AppStoreContext.jsx";
 
 export default function HotelsDashboard() {
-  const { state } = useAppStore();
+  const { state, dispatch } = useAppStore();
   const navigate = useNavigate();
   const token = state.session.adminToken;
 
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [recoveringSession, setRecoveringSession] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState(null);
+
+  useEffect(() => {
+    async function ensureAdminSession() {
+      if (!state.session.ready || token || recoveringSession) return;
+
+      setRecoveringSession(true);
+      try {
+        const admin = await fetchSession("admin");
+        dispatch({
+          type: "LOGIN_ADMIN",
+          payload: {
+            token: admin.token,
+            user: admin.user
+          }
+        });
+      } catch (err) {
+        setError(err.message || "Unable to initialize admin session.");
+      } finally {
+        setRecoveringSession(false);
+      }
+    }
+
+    ensureAdminSession();
+  }, [state.session.ready, token, recoveringSession, dispatch]);
 
   useEffect(() => {
     async function loadHotels() {
@@ -41,10 +67,11 @@ export default function HotelsDashboard() {
     return (
       <section className="mx-auto max-w-2xl card-glass surface-elevated rounded-[1.75rem] p-6 text-center">
         <p className="text-xs uppercase tracking-[0.32em] text-amber-100">Admin access</p>
-        <h1 className="mt-3 text-2xl font-semibold text-white">Admin session is not available</h1>
+        <h1 className="mt-3 text-2xl font-semibold text-white">Preparing hotel dashboard</h1>
         <p className="mt-3 text-sm leading-7 text-slate-300">
-          You need admin access to view registered hotels.
+          {recoveringSession ? "Initializing admin session..." : "Waiting for admin session initialization."}
         </p>
+        {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
       </section>
     );
   }
