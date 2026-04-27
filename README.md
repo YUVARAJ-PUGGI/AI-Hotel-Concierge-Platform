@@ -180,10 +180,16 @@ sequenceDiagram
 Primary routes in the app:
 
 - `/` Home
+<<<<<<< HEAD
 - `/login/user` User login
 - `/login/staff` Staff login
 - `/login/admin` Admin login
 - `/dashboard` User dashboard
+=======
+- `/login` Login
+- `/dashboard` User dashboard
+- `/search` Search page
+>>>>>>> 31a1d8873669bd72c390c07a90862aba62d49d83
 - `/results` Search results
 - `/hotels/:hotelId` Hotel details
 - `/booking/:hotelId` Booking flow
