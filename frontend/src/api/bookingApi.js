@@ -20,3 +20,8 @@ export async function getUserBookings(token) {
   });
   return data.data;
 }
+
+export async function getHotelRooms(hotelId) {
+  const { data } = await axiosClient.get(`/hotels/${hotelId}/rooms`);
+  return data.data;
+}

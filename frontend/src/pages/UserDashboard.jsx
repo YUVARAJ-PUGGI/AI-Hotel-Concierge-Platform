@@ -53,7 +53,7 @@ export default function UserDashboard() {
 
   const handleSignOut = () => {
     dispatch({ type: "LOGOUT_GUEST" });
-    navigate("/login/user");
+    navigate("/");
   };
 
   if (!state.session.ready || loading) {

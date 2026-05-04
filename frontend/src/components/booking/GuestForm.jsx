@@ -1,6 +1,6 @@
 import Button from "../common/Button.jsx";
 
-export default function GuestForm({ form, onChange, onSubmit, loading }) {
+export default function GuestForm({ form, onChange, onSubmit, loading, selectedRoom }) {
   return (
     <section className="card-glass rounded-3xl p-6">
       <h2 className="text-xl font-semibold text-white">Guest Details</h2>
@@ -57,7 +57,14 @@ export default function GuestForm({ form, onChange, onSubmit, loading }) {
         <p className="mt-1 text-sm text-slate-300">UPI / Card / Net banking UI placeholder with secure tokenization in production.</p>
       </div>
 
-      <Button className="mt-5 w-full" onClick={onSubmit} disabled={loading}>
+      {selectedRoom && (
+        <div className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+          <p className="text-xs uppercase tracking-wide text-amber-200">Room Selected</p>
+          <p className="mt-2 text-sm text-white">Room {selectedRoom.roomNumber} - {selectedRoom.type} at Rs. {selectedRoom.price}/night</p>
+        </div>
+      )}
+
+      <Button className="mt-5 w-full" onClick={onSubmit} disabled={loading || !selectedRoom}>
         {loading ? "Confirming..." : "Confirm Booking"}
       </Button>
     </section>

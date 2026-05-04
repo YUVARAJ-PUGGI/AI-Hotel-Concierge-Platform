@@ -17,25 +17,50 @@ const router = Router();
 function detectInstantServiceIntent(message) {
   const normalized = String(message || "").toLowerCase();
 
-  const foodKeywords = [
-    "order food",
+  const actionVerbs = [
+    "order",
+    "send",
+    "bring",
+    "deliver",
+    "need",
+    "please",
+    "can i get",
+    "want"
+  ];
+
+  const foodItems = [
     "food",
-    "hungry",
     "meal",
     "breakfast",
     "lunch",
     "dinner",
     "snack",
-    "menu",
+    "idli",
+    "dosa",
+    "sandwich",
+    "omelette",
+    "coffee",
+    "tea",
+    "thali",
+    "paneer",
+    "biryani",
+    "dal",
+    "naan",
+    "curry",
+    "rice",
+    "gulab jamun",
+    "fries",
+    "lime soda",
+    "water",
     "biryani",
     "pizza",
     "tea",
-    "coffee",
-    "room service"
+    "coffee"
   ];
 
-  const roomServiceKeywords = [
+  const roomServiceItems = [
     "towel",
+    "toiletries",
     "housekeeping",
     "laundry",
     "clean",
@@ -43,14 +68,13 @@ function detectInstantServiceIntent(message) {
     "bedsheet",
     "blanket",
     "pillow",
-    "water bottle",
-    "toiletries",
     "doctor",
     "airport pickup",
     "airport transfer"
   ];
 
-  const isFoodRequest = foodKeywords.some((keyword) => normalized.includes(keyword));
+  const isAction = actionVerbs.some((verb) => normalized.includes(verb));
+  const isFoodRequest = isAction && foodItems.some((keyword) => normalized.includes(keyword));
   if (isFoodRequest) {
     return {
       answer:
@@ -61,7 +85,7 @@ function detectInstantServiceIntent(message) {
     };
   }
 
-  const isServiceRequest = roomServiceKeywords.some((keyword) => normalized.includes(keyword));
+  const isServiceRequest = isAction && roomServiceItems.some((keyword) => normalized.includes(keyword));
   if (isServiceRequest) {
     return {
       answer:
@@ -155,7 +179,9 @@ router.post("/concierge/message", authenticate, async (req, res, next) => {
       return ok(res, {
         text: instantIntent.answer,
         escalated: true,
-        reason: instantIntent.reason
+        reason: instantIntent.reason,
+        seq: assistantSeq,
+        sender: "assistant"
       });
     }
 
@@ -232,7 +258,10 @@ router.post("/concierge/message", authenticate, async (req, res, next) => {
 
     return ok(res, {
       text: aiResponse.answer,
-      escalated: Boolean(aiResponse.escalate)
+      escalated: Boolean(aiResponse.escalate),
+      reason: aiResponse.reason || null,
+      seq: assistantSeq,
+      sender: "assistant"
     });
   } catch (err) {
     return next(err);
@@ -247,6 +276,10 @@ router.get("/concierge/history/:bookingId", authenticate, async (req, res, next)
     }
 
     const conversation = await Conversation.findOne({ bookingId: booking._id });
+    if (!conversation) {
+      return ok(res, []);
+    }
+
     const messages = await Message.find({ conversationId: conversation._id }).sort({ seq: 1 }).limit(200);
     return ok(res, messages);
   } catch (err) {

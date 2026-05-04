@@ -1,8 +1,10 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 import { Hotel } from "../models/Hotel.js";
 import { Room } from "../models/Room.js";
+import { User } from "../models/User.js";
 import { ok } from "../utils/apiResponse.js";
 
 const router = Router();
@@ -74,17 +76,76 @@ async function seedDemoData() {
   return { seeded: true, hotels: hotels.length, rooms: roomDocs.length };
 }
 
-router.get("/dev/session", (req, res) => {
-  const role = req.query.role || "guest";
-  const payload = {
-    userId: `demo-${role}`,
-    role,
-    name: role === "guest" ? "Demo Guest" : "Demo Staff",
-    email: `${role}@demo.local`
-  };
+router.get("/dev/session", async (req, res, next) => {
+  try {
+    const role = req.query.role || "guest";
 
-  const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
-  return ok(res, { token, user: payload });
+    const roleMap = {
+      staff: "front_desk",
+      front_desk: "front_desk",
+      admin: "admin",
+      guest: "guest"
+    };
+
+    const dbRole = roleMap[role] || "guest";
+    await seedDemoData();
+    const demoHotel = await Hotel.findOne({}).sort({ createdAt: 1 });
+
+    let displayName = "Demo Guest";
+    if (dbRole === "admin") {
+      displayName = "Demo Admin";
+    } else if (dbRole === "front_desk") {
+      displayName = "Demo Staff";
+    }
+
+    const email = `${dbRole}@demo.local`;
+    const passwordHash = await bcrypt.hash("password", 12);
+    const assignedHotelId = dbRole === "front_desk" ? demoHotel?._id : null;
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        name: displayName,
+        email,
+        role: dbRole,
+        passwordHash,
+        hotelId: assignedHotelId,
+        isActive: true
+      });
+    } else {
+      user.name = displayName;
+      user.role = dbRole;
+      user.passwordHash = passwordHash;
+      user.isActive = true;
+      user.hotelId = assignedHotelId || null;
+      await user.save();
+    }
+
+    if (dbRole === "front_desk" && demoHotel) {
+      const alreadyAssigned = demoHotel.staff.some((member) => member.staffId.toString() === user._id.toString());
+      if (!alreadyAssigned) {
+        demoHotel.staff.push({
+          staffId: user._id,
+          role: "front_desk",
+          addedAt: new Date()
+        });
+        await demoHotel.save();
+      }
+    }
+
+    const payload = {
+      userId: user._id.toString(),
+      role: dbRole,
+      name: displayName,
+      email,
+      hotelId: user.hotelId ? user.hotelId.toString() : null
+    };
+
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: "7d" });
+    return ok(res, { token, user: payload });
+  } catch (err) {
+    return next(err);
+  }
 });
 
 router.post("/dev/seed-demo-data", async (req, res, next) => {

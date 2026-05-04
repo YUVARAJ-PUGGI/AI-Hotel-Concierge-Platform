@@ -1,11 +1,40 @@
 import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import Button from "../components/common/Button.jsx";
 import { useAppStore } from "../store/AppStoreContext.jsx";
+import { fetchSession } from "../api/sessionApi.js";
+import { getBookingById } from "../api/bookingApi.js";
 
 export default function Confirmation() {
   const { bookingId } = useParams();
-  const { state } = useAppStore();
-  const booking = state.booking.current;
+  const { state, dispatch } = useAppStore();
+  const [booking, setBooking] = useState(state.booking.current || null);
+  const [loadingBooking, setLoadingBooking] = useState(true);
+
+  const canUseConcierge = useMemo(() => booking?.status === "checked_in", [booking?.status]);
+
+  useEffect(() => {
+    async function loadBooking() {
+      setLoadingBooking(true);
+      try {
+        let guestToken = state.session.guestToken;
+        if (!guestToken) {
+          const guestSession = await fetchSession("guest");
+          guestToken = guestSession.token;
+          dispatch({ type: "LOGIN_GUEST", payload: { token: guestToken, user: guestSession.user } });
+        }
+
+        const bookingData = await getBookingById(bookingId, guestToken);
+        setBooking(bookingData);
+      } catch {
+        setBooking(state.booking.current || null);
+      } finally {
+        setLoadingBooking(false);
+      }
+    }
+
+    loadBooking();
+  }, [bookingId, dispatch, state.booking.current, state.session.guestToken]);
 
   return (
     <section className="mx-auto max-w-3xl card-glass rounded-3xl p-8 text-center">
@@ -25,17 +54,27 @@ export default function Confirmation() {
       </div>
 
       <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
-        <Link to={`/concierge/${bookingId}`}>
-          <Button>Start Concierge</Button>
-        </Link>
+        {canUseConcierge ? (
+          <Link to={`/concierge/${bookingId}`}>
+            <Button>Start Concierge</Button>
+          </Link>
+        ) : (
+          <Button disabled>{loadingBooking ? "Checking access..." : "Concierge unlocks after hotel check-in"}</Button>
+        )}
         <Link to="/results">
           <Button variant="secondary">Back to Results</Button>
         </Link>
       </div>
 
+      {!canUseConcierge && !loadingBooking ? (
+        <p className="mt-3 text-xs text-slate-400">
+          Concierge chat becomes available once hotel staff marks your booking as checked-in.
+        </p>
+      ) : null}
+
       {booking ? (
         <p className="mt-4 text-xs text-slate-500">
-          Confirmed for hotel ID: {String(booking.hotelId)}
+          Confirmed for hotel: {booking?.hotelId?.name || String(booking?.hotelId?._id || booking.hotelId)}
         </p>
       ) : null}
     </section>

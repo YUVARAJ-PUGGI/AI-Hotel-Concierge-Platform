@@ -18,12 +18,12 @@ export default function HotelCard({ hotel }) {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent" />
         </div>
 
-        <div className="flex flex-col justify-between">
+        <div className="min-w-0 flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-semibold text-white md:text-2xl">{hotel.name}</h3>
-                <p className="mt-1 text-sm text-slate-300">{hotel.locationText}</p>
+              <div className="min-w-0">
+                <h3 className="break-words text-xl font-semibold text-white md:text-2xl">{hotel.name}</h3>
+                <p className="mt-1 break-words text-sm text-slate-300">{hotel.locationText}</p>
               </div>
               <Badge tone="accent">{hotel.rating?.toFixed?.(1) ?? hotel.rating} ★</Badge>
             </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
 import { createBooking } from "../api/bookingApi.js";
+import { fetchSession } from "../api/sessionApi.js";
 import { useAppStore } from "../store/AppStoreContext.jsx";
 import Button from "../components/common/Button.jsx";
 import Loader from "../components/common/Loader.jsx";
@@ -113,6 +114,12 @@ export default function BookingPage() {
     setError("");
     
     try {
+      let guestToken = state.session.guestToken;
+      if (!guestToken) {
+        const guestSession = await fetchSession("guest");
+        guestToken = guestSession.token;
+      }
+
       const bookingData = await createBooking({
         hotelId,
         roomId: selectedRoom.id,
@@ -121,7 +128,7 @@ export default function BookingPage() {
         totalAmount: selectedRoom.price,
         govtIdType: guestForm.govtIdType,
         govtIdNumber: guestForm.govtIdNumber
-      }, state.session.guestToken);
+      }, guestToken);
       
       navigate(`/confirmation/${bookingData.booking._id}`);
     } catch (err) {

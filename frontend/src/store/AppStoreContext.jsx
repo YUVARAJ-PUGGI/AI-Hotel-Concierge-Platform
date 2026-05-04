@@ -45,6 +45,46 @@ function reducer(state, action) {
           admin: action.payload.admin
         }
       };
+    case "LOGIN_GUEST":
+      localStorage.setItem("guestToken", action.payload.token);
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          guestToken: action.payload.token,
+          guest: action.payload.user
+        }
+      };
+    case "LOGIN_STAFF":
+      localStorage.setItem("staffToken", action.payload.token);
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          staffToken: action.payload.token,
+          staff: action.payload.user
+        }
+      };
+    case "LOGIN_ADMIN":
+      localStorage.setItem("adminToken", action.payload.token);
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          adminToken: action.payload.token,
+          admin: action.payload.user
+        }
+      };
+    case "LOGOUT_GUEST":
+      localStorage.removeItem("guestToken");
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          guestToken: "",
+          guest: null
+        }
+      };
     case "SEARCH_UPDATE":
       return {
         ...state,

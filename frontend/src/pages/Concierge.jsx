@@ -58,7 +58,13 @@ export default function Concierge() {
 
     const onTyping = (payload) => setTyping(Boolean(payload.typing));
     const onMessage = (payload) => {
-      setMessages((prev) => [...prev, payload]);
+      setMessages((prev) => {
+        const hasSeq = payload?.seq && prev.some((message) => message.seq === payload.seq);
+        if (hasSeq) {
+          return prev;
+        }
+        return [...prev, payload];
+      });
     };
     const onTicketUpdate = () => {
       setRequestStatus((prev) => [
@@ -87,6 +93,24 @@ export default function Concierge() {
 
     try {
       const response = await sendConciergeMessage({ bookingId, message: trimmed }, token);
+
+      if (response?.text) {
+        setMessages((prev) => {
+          const hasSeq = response.seq && prev.some((message) => message.seq === response.seq);
+          if (hasSeq) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            {
+              sender: response.sender || "assistant",
+              text: response.text,
+              seq: response.seq || Date.now()
+            }
+          ];
+        });
+      }
 
       if (response.escalated) {
         setRequestStatus((prev) => [
@@ -134,6 +158,12 @@ export default function Concierge() {
           </div>
         ) : null}
 
+        {booking?.status !== "checked_in" ? (
+          <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+            Concierge chat is locked until hotel staff checks you in from the hotel dashboard.
+          </div>
+        ) : null}
+
         <ChatWindow
           messages={messages}
           typing={typing}
@@ -141,6 +171,8 @@ export default function Concierge() {
           onInputChange={setInput}
           onSend={() => postMessage(input)}
           disabled={booking?.status !== "checked_in"}
+          hotelName={booking?.hotelId?.name}
+          welcomeText={booking?.hotelId?.name ? `Welcome to ${booking.hotelId.name}` : "Welcome"}
         />
       </div>
 

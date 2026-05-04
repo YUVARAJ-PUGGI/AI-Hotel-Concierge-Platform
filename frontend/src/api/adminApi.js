@@ -63,8 +63,8 @@ export async function deleteHotelDocument(token, documentId) {
   return data.data;
 }
 
-export async function updateBookingStatus(token, bookingId, status) {
-  const { data } = await axiosClient.patch(`/admin/bookings/${bookingId}/status`, { status }, {
+export async function updateBookingStatus(token, bookingId, payload) {
+  const { data } = await axiosClient.patch(`/admin/bookings/${bookingId}/status`, payload, {
     headers: authHeaders(token)
   });
   return data.data;

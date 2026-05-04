@@ -12,9 +12,26 @@ export default function FilterPanel({ filters, onChange }) {
     onChange({ ...filters, amenities });
   }
 
+  function handleReset() {
+    onChange({
+      maxPrice: 12000,
+      minRating: 0,
+      amenities: [],
+      cancellation: "Any"
+    });
+  }
+
   return (
     <aside className="card-glass surface-elevated sticky top-24 rounded-[1.75rem] p-5">
-      <h3 className="text-lg font-semibold text-white">Filters</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">Filters</h3>
+        <button
+          onClick={handleReset}
+          className="text-xs font-semibold text-amber-300 hover:text-amber-200 transition-colors"
+        >
+          Reset
+        </button>
+      </div>
 
       <div className="mt-5">
         <label className="text-xs uppercase tracking-wide text-slate-400">Max Price (INR)</label>

@@ -112,7 +112,7 @@ router.get("/admin/hotel-documents", authenticate, requireAdmin, async (req, res
 
 router.post("/admin/hotel-documents", authenticate, requireAdmin, async (req, res, next) => {
   try {
-    const { hotelId, title, content, sourceName, tags = [], fileData, fileType } = req.body;
+    const { hotelId, title, content, sourceName, tags = [] } = req.body;
 
     if (!hotelId || !title) {
       return fail(res, "VALIDATION_ERROR", "hotelId and title are required", 400);
@@ -123,39 +123,25 @@ router.post("/admin/hotel-documents", authenticate, requireAdmin, async (req, re
       return fail(res, "NOT_FOUND", "Hotel not found", 404);
     }
 
-    let processedContent = content;
-
-    // If fileData is provided (base64 encoded file), process it
-    if (fileData && fileType) {
-      try {
-        if (fileType === 'application/pdf') {
-          // For PDF files, we'll extract text content
-          // Since we can't easily add PDF parsing libraries, we'll use a simple approach
-          // In production, you'd use libraries like pdf-parse or pdf2pic
-          
-          // For now, let's handle the case where content is already provided
-          // but if it looks like binary data, we'll provide a helpful message
-          if (content && (content.includes('%PDF') || content.includes('ReportLab') || content.includes('%����'))) {
-            processedContent = `This is a PDF document titled "${title}". The content includes hotel information, services, and amenities. Please contact the hotel directly for detailed information about services, menu options, and policies.`;
-          }
-        }
-      } catch (err) {
-        console.error("Error processing file:", err);
-        // Continue with original content if processing fails
-      }
+    const processedContent = String(content || "").trim();
+    if (!processedContent) {
+      return fail(res, "VALIDATION_ERROR", "Document content is required", 400);
     }
 
-    // If content still looks like binary data, provide a fallback
-    if (processedContent && (processedContent.includes('%PDF') || processedContent.includes('%����') || processedContent.includes('ReportLab'))) {
-      processedContent = `Document: ${title}
-
-This document contains important hotel information including:
-- Room Services: 24/7 room service, laundry service, housekeeping, airport pickup
-- Food Menu: Breakfast (Idli, Dosa, Upma, Tea, Coffee), Lunch (Veg Thali, Chicken Biryani, Paneer Curry), Dinner (Roti, Rice, Dal, Mixed Veg, Chicken Curry), Snacks (Sandwich, French Fries, Juice)
-- Hotel Amenities: Free Wi-Fi, parking, restaurant facilities
-- Policies: Standard check-in/check-out procedures, cancellation policies
-
-For specific details about timings, pricing, and availability, please contact our front desk directly.`;
+    // Guardrail: store only usable text content; avoid persisting binary blobs.
+    const looksBinary =
+      processedContent.includes("%PDF") ||
+      processedContent.includes("PK\u0003\u0004") ||
+      processedContent.includes("\u0000") ||
+      processedContent.includes("%����") ||
+      processedContent.includes("ReportLab");
+    if (looksBinary) {
+      return fail(
+        res,
+        "VALIDATION_ERROR",
+        "Uploaded file content appears binary. Paste extracted plain text into the content box before saving.",
+        400
+      );
     }
 
     const document = await HotelDocument.create({
@@ -354,10 +340,18 @@ router.get("/admin/bookings", authenticate, requireAdmin, async (req, res, next)
 router.patch("/admin/bookings/:bookingId/status", authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-    const { status } = req.body;
+    const { status, paymentStatus } = req.body;
 
-    if (!status || !['confirmed', 'checked_in', 'checked_out', 'cancelled'].includes(status)) {
+    if (!status && !paymentStatus) {
+      return fail(res, "VALIDATION_ERROR", "At least one field must be provided", 400);
+    }
+
+    if (status && !['initiated', 'confirmed', 'checked_in', 'checked_out', 'cancelled'].includes(status)) {
       return fail(res, "VALIDATION_ERROR", "Invalid status", 400);
+    }
+
+    if (paymentStatus && !['initiated', 'pending', 'completed', 'failed', 'refunded'].includes(paymentStatus)) {
+      return fail(res, "VALIDATION_ERROR", "Invalid payment status", 400);
     }
 
     const booking = await Booking.findById(bookingId);
@@ -365,7 +359,14 @@ router.patch("/admin/bookings/:bookingId/status", authenticate, requireAdmin, as
       return fail(res, "NOT_FOUND", "Booking not found", 404);
     }
 
-    booking.status = status;
+    if (status) {
+      booking.status = status;
+    }
+
+    if (paymentStatus) {
+      booking.paymentStatus = paymentStatus;
+    }
+
     await booking.save();
 
     return ok(res, booking);
@@ -438,7 +439,7 @@ router.post("/admin/hotels/:hotelId/staff", authenticate, requireAdmin, async (r
     }
 
     // Create new staff user
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(password, salt);
 
     const staffUser = await User.create({

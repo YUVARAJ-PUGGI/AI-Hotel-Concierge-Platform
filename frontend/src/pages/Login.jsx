@@ -7,13 +7,11 @@ import { useAppStore } from "../store/AppStoreContext.jsx";
 
 function normalizeRole(roleParam) {
   if (roleParam === "staff") return "staff";
-  if (roleParam === "admin") return "admin";
   return "user";
 }
 
 function matchesRole(expectedRole, actualRole) {
   if (expectedRole === "user") return actualRole === "guest";
-  if (expectedRole === "admin") return actualRole === "admin";
   return ["front_desk", "housekeeper", "manager", "staff"].includes(actualRole);
 }
 
@@ -50,23 +48,21 @@ export default function Login() {
 
       if (!matchesRole(loginType, data.user?.role)) {
         throw new Error(
-          loginType === "admin"
-            ? "This account is not an admin account."
-            : loginType === "staff"
+          loginType === "staff"
             ? "This account is not a staff account."
             : "Please use a guest account for user login."
         );
       }
 
       dispatch({
-        type: loginType === "staff" ? "LOGIN_STAFF" : loginType === "admin" ? "LOGIN_ADMIN" : "LOGIN_GUEST",
+        type: loginType === "staff" ? "LOGIN_STAFF" : "LOGIN_GUEST",
         payload: {
           token: data.token,
           user: data.user
         }
       });
 
-      navigate(loginType === "staff" ? "/staff" : loginType === "admin" ? "/admin" : "/dashboard");
+      navigate(loginType === "staff" ? "/staff" : "/dashboard");
     } catch (err) {
       setError(err.response?.data?.error?.message || err.message || "An error occurred during authentication.");
     } finally {
@@ -74,11 +70,9 @@ export default function Login() {
     }
   }
 
-  const title = loginType === "admin" ? "Admin Login" : loginType === "staff" ? "Staff Login" : isRegister ? "Create User Account" : "User Login";
+  const title = loginType === "staff" ? "Staff Login" : isRegister ? "Create User Account" : "User Login";
   const subtitle =
-    loginType === "admin"
-      ? "Sign in with your admin account to manage hotels and operations."
-      : loginType === "staff"
+    loginType === "staff"
       ? "Sign in with your staff account to manage live guest requests."
       : isRegister
       ? "Create your guest account to book stays and use concierge chat."
@@ -111,6 +105,7 @@ export default function Login() {
               <input
                 type="text"
                 required
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-[#0f1525] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-[#00D1B2] focus:outline-none focus:ring-1 focus:ring-[#00D1B2]"
@@ -126,6 +121,7 @@ export default function Login() {
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-white/10 bg-[#0f1525] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-[#00D1B2] focus:outline-none focus:ring-1 focus:ring-[#00D1B2]"
@@ -140,6 +136,7 @@ export default function Login() {
             <input
               type="password"
               required
+              autoComplete={isRegister ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl border border-white/10 bg-[#0f1525] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-[#00D1B2] focus:outline-none focus:ring-1 focus:ring-[#00D1B2]"

@@ -77,10 +77,10 @@ export default function Results() {
   return (
     <div className="grid gap-6 lg:grid-cols-[290px_1fr]">
       <FilterPanel filters={filters} onChange={setFilters} />
-      <div className="animate-fade-up">
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3">
-          <h2 className="text-2xl font-semibold text-white">Hotels for "{initialQuery || "your search"}"</h2>
-          <p className="text-sm text-slate-300">{filteredHotels.length} results</p>
+      <div className="animate-fade-up min-w-0 overflow-x-hidden">
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <h2 className="min-w-0 break-words text-xl font-semibold text-white md:text-2xl">Hotels for "{initialQuery || "your search"}"</h2>
+          <p className="shrink-0 text-sm text-slate-300">{filteredHotels.length} results</p>
         </div>
 
         <HotelList

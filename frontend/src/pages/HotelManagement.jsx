@@ -164,6 +164,84 @@ export default function HotelManagement() {
     }
   }
 
+  async function handleBookingStatusChange(bookingId, status) {
+    if (!token || !bookingId || !status) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const updatedBooking = await updateBookingStatus(token, bookingId, { status });
+      setBookings((currentBookings) =>
+        currentBookings.map((booking) =>
+          booking.id === bookingId
+            ? {
+                ...booking,
+                status: updatedBooking.status || status
+              }
+            : booking
+        )
+      );
+      setSuccess("Booking status updated successfully.");
+    } catch (err) {
+      setError(`Failed to update booking status: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleBookingPaymentStatusChange(bookingId, paymentStatus) {
+    if (!token || !bookingId || !paymentStatus) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const updatedBooking = await updateBookingStatus(token, bookingId, { paymentStatus });
+      setBookings((currentBookings) =>
+        currentBookings.map((booking) =>
+          booking.id === bookingId
+            ? {
+                ...booking,
+                paymentStatus: updatedBooking.paymentStatus || paymentStatus
+              }
+            : booking
+        )
+      );
+      setSuccess("Payment status updated successfully.");
+    } catch (err) {
+      setError(`Failed to update payment status: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCancelBooking(bookingId) {
+    if (!token || !bookingId) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const updatedBooking = await updateBookingStatus(token, bookingId, { status: "cancelled" });
+      setBookings((currentBookings) =>
+        currentBookings.map((booking) =>
+          booking.id === bookingId
+            ? {
+                ...booking,
+                status: updatedBooking.status || "cancelled"
+              }
+            : booking
+        )
+      );
+      setSuccess("Booking cancelled successfully.");
+    } catch (err) {
+      setError(`Failed to cancel booking: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // Load bookings when bookings tab is selected
   useEffect(() => {
     if (activeTab === "bookings") {
@@ -171,7 +249,9 @@ export default function HotelManagement() {
     }
   }, [activeTab, token, hotelId]);
 
-  async function handleAddStaff() {
+  async function handleAddStaff(event) {
+    event?.preventDefault();
+
     if (!staffForm.name || !staffForm.role || !staffForm.email || !staffForm.password) {
       setError("Please fill in all required staff fields");
       return;
@@ -289,8 +369,8 @@ Please edit this content to match your actual PDF document.`;
       content: content
     }));
     
-    if (fileType === "application/pdf") {
-      setSuccess("PDF template loaded. Please edit the content to match your actual document.");
+    if (fileType === "application/pdf" || fileType === "application/msword" || fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      setSuccess("Document template loaded. Paste your actual hotel text before uploading.");
     }
   }
 
@@ -596,11 +676,12 @@ Please edit this content to match your actual PDF document.`;
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="card-glass surface-elevated rounded-[1.75rem] p-6">
             <h2 className="text-xl font-semibold text-white">Add Staff Member</h2>
-            <div className="mt-5 space-y-4">
+            <form onSubmit={handleAddStaff} className="mt-5 space-y-4">
               <input
                 value={staffForm.name}
                 onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
                 placeholder="Full Name"
+                autoComplete="name"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
               />
               <input
@@ -608,12 +689,14 @@ Please edit this content to match your actual PDF document.`;
                 onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
                 placeholder="Email"
                 type="email"
+                autoComplete="email"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
               />
               <input
                 value={staffForm.phone}
                 onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
                 placeholder="Phone Number"
+                autoComplete="tel"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
               />
               <input
@@ -621,6 +704,7 @@ Please edit this content to match your actual PDF document.`;
                 onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
                 placeholder="Password"
                 type="password"
+                autoComplete="new-password"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
               />
               <select
@@ -632,10 +716,10 @@ Please edit this content to match your actual PDF document.`;
                 <option value="housekeeper">Housekeeper</option>
                 <option value="manager">Manager</option>
               </select>
-              <Button onClick={handleAddStaff} disabled={!staffForm.name || !staffForm.role || !staffForm.email || !staffForm.password || saving}>
+              <Button type="submit" disabled={!staffForm.name || !staffForm.role || !staffForm.email || !staffForm.password || saving}>
                 {saving ? "Adding..." : "Add Staff Member"}
               </Button>
-            </div>
+            </form>
           </div>
 
           <div className="card-glass surface-elevated rounded-[1.75rem] p-6">
@@ -929,8 +1013,9 @@ Please edit this content to match your actual PDF document.`;
                                     )}
                                   </div>
                                   <button
-                                    onClick={() => handleCancelBooking(room.id, booking.id)}
-                                    className="text-xs text-red-400 hover:text-red-300"
+                                    onClick={() => handleCancelBooking(booking.id)}
+                                    className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                                    disabled={saving}
                                   >
                                     Cancel
                                   </button>
@@ -1181,8 +1266,10 @@ Please edit this content to match your actual PDF document.`;
                             <select
                               value={booking.status}
                               onChange={(e) => handleBookingStatusChange(booking.id, e.target.value)}
-                              className="rounded-lg border border-white/10 bg-slate-900 px-2 py-1 text-sm text-white outline-none"
+                              className="rounded-lg border border-white/10 bg-slate-900 px-2 py-1 text-sm text-white outline-none disabled:opacity-60"
+                              disabled={saving}
                             >
+                              <option value="initiated">Initiated</option>
                               <option value="confirmed">Confirmed</option>
                               <option value="checked_in">Checked In</option>
                               <option value="checked_out">Checked Out</option>
@@ -1191,16 +1278,18 @@ Please edit this content to match your actual PDF document.`;
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-slate-400 text-sm">Payment:</span>
-                            <Badge 
-                              className={
-                                booking.paymentStatus === 'completed' ? 'bg-emerald-500/20 text-emerald-300' :
-                                booking.paymentStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
-                                booking.paymentStatus === 'failed' ? 'bg-red-500/20 text-red-300' :
-                                'bg-gray-500/20 text-gray-300'
-                              }
+                            <select
+                              value={booking.paymentStatus}
+                              onChange={(e) => handleBookingPaymentStatusChange(booking.id, e.target.value)}
+                              className="rounded-lg border border-white/10 bg-slate-900 px-2 py-1 text-sm text-white outline-none disabled:opacity-60"
+                              disabled={saving}
                             >
-                              {booking.paymentStatus}
-                            </Badge>
+                              <option value="initiated">Initiated</option>
+                              <option value="pending">Pending</option>
+                              <option value="completed">Completed</option>
+                              <option value="failed">Failed</option>
+                              <option value="refunded">Refunded</option>
+                            </select>
                           </div>
                           <p className="text-lg font-semibold text-amber-300">
                             ₹{booking.totalAmount}

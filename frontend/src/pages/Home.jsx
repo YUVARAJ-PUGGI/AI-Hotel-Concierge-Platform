@@ -39,11 +39,6 @@ export default function Home() {
               <Button variant="secondary" onClick={handleAuthClick} className="px-6 py-3 text-base">
                 {state.session.guestToken ? "Sign Out" : "Sign In"}
               </Button>
-              <Link to="/login/admin">
-                <Button variant="secondary" className="px-6 py-3 text-base">
-                  Admin Login
-                </Button>
-              </Link>
               <Link to="/login/staff">
                 <Button variant="ghost" className="px-6 py-3 text-base">
                   Staff Login
@@ -82,7 +77,10 @@ export default function Home() {
             <p className="text-xs uppercase tracking-[0.24em] text-emerald-200/80">Admin</p>
             <h3 className="mt-2 text-2xl font-semibold text-white">Admin Console</h3>
             <p className="mt-2 text-sm text-slate-300">Manage hotels, rooms, and document context powering concierge answers.</p>
-            <Button className="mt-4 w-full" variant="ghost" onClick={() => navigate("/login/admin")}>Continue as Admin</Button>
+            <div className="mt-4 flex flex-col gap-3">
+              <Button className="w-full" variant="ghost" onClick={() => navigate("/admin")}>Open Admin Console</Button>
+              <Button className="w-full" variant="secondary" onClick={() => navigate("/hotels-dashboard")}>Open Hotels Dashboard</Button>
+            </div>
           </div>
         </div>
       </section>

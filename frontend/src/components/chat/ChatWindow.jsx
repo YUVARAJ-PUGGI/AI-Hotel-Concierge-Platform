@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import InputBox from "./InputBox.jsx";
 
-export default function ChatWindow({ messages, typing, input, onInputChange, onSend, disabled }) {
+export default function ChatWindow({ messages, typing, input, onInputChange, onSend, disabled, hotelName, welcomeText }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -16,6 +16,7 @@ export default function ChatWindow({ messages, typing, input, onInputChange, onS
 
       <div className="mb-3 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
         <div>
+          <p className="text-[11px] font-medium tracking-wide text-amber-200">{welcomeText || (hotelName ? `Welcome to ${hotelName}` : "Welcome")}</p>
           <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Live Concierge</p>
           <h3 className="mt-1 text-sm font-semibold text-white">Food orders and room services</h3>
         </div>
