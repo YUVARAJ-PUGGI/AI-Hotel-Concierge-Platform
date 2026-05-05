@@ -225,15 +225,6 @@ Response time: Within 24 hours
 - Complimentary breakfast
 - Free spa voucher worth Rs. 500
 
-### Corporate Rates
-- Minimum 5 nights: 20% discount
-- Business meeting room free
-- Complimentary WiFi upgrade
-
-### Loyalty Program
-- Every stay earns loyalty points
-- 100 points = Rs. 1,000 discount on next stay
-- Priority booking for members
 
 ---
 
