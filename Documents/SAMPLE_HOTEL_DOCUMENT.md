@@ -218,12 +218,7 @@ Response time: Within 24 hours
 
 ---
 
-## Special Offers & Discounts
 
-### Seasonal Offers (January - March)
-- 15% discount on stay
-- Complimentary breakfast
-- Free spa voucher worth Rs. 500
 
 
 ---
