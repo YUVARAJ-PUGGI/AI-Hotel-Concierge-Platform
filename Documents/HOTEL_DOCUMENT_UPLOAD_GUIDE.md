@@ -236,14 +236,3 @@ Use this template structure for your documents:
 
 ---
 
-## Getting Help
-
-If you need help:
-1. Refer to this guide
-2. Use the sample document template provided
-3. Contact hotel support
-4. Ask the concierge AI for guidance (it may help with document creation)
-
----
-
-**Next Steps**: Upload your first document using the sample template!
